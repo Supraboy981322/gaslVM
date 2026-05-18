@@ -241,7 +241,6 @@ fn run(self:*VM) InterpResult {
                 else
                     return .runtime(error.IllegalInstruction, "print"),
 
-            // WARNING: DO NOT PROVIDE THESE OUT OF ORDER
 
             //pointers and allocation
             .save => {
