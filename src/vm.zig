@@ -162,9 +162,10 @@ fn run(self:*VM) InterpResult {
                 const syscall_name = std.meta.stringToEnum(
                     std.posix.system.SYS, name_str
                 ) orelse return .runtime(error.InvalidSyscall, name_str);
-                _ = self.syscall(syscall_name, @intCast(param_count)) catch |e| {
+                const ret = self.syscall(syscall_name, @intCast(param_count)) catch |e| {
                     return .runtime(e, null);
                 };
+                self.push(ret);
             },
             inline .jmp, .jmpif => |which| {
                 const pos = self.pop().pos;
