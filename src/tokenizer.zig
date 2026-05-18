@@ -1,5 +1,5 @@
 const std = @import("std");
-const token = @import("token.zig");
+const Token = @import("token.zig");
 const chunk = @import("chunk.zig");
 const hlp = @import("helpers.zig");
 
@@ -7,7 +7,6 @@ const parseInt = std.fmt.parseInt;
 const parseFloat = std.fmt.parseFloat;
 
 const OpCode = chunk.OpCode;
-const Token = token.Token;
 const Value = @import("value.zig").Value;
 
 const Tokenizer = @This();

@@ -1,7 +1,7 @@
 const std = @import("std");
 const common = @import("common.zig");
 
-const Token = @import("token.zig").Token;
+const Token = @import("token.zig");
 const Chunk = @import("chunk.zig").Chunk;
 const CodeByte = common.CodeByte;
 const OpCode = @import("chunk.zig").OpCode;

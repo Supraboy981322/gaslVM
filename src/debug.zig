@@ -34,7 +34,7 @@ pub fn const_instruction(chunk:*Chunk, i:*usize) value.Value {
     return chunk.get_const(i.*+1);
 }
 
-pub fn print_token(token:@import("token.zig").Token) void {
+pub fn print_token(token:@import("token.zig")) void {
     std.debug.print("({d}) ", .{token.line});
     switch (token.value) {
         .opcode => |i| std.debug.print("{s}\n", .{@tagName(i)}),

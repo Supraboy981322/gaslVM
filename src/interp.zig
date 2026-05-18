@@ -10,14 +10,14 @@ const Interp = @This();
 
 alloc:std.mem.Allocator,
 reader:*std.Io.Reader,
-opts:InterpOpts,
+opts:Opts,
 
-pub const InterpOpts = struct {
+pub const Opts = struct {
     mode:common.Mode = .debug,
     defines:?common.DefineList = null,
 };
 
-pub fn init(alloc:std.mem.Allocator, reader:*std.Io.Reader, opts:InterpOpts) Interp {
+pub fn init(alloc:std.mem.Allocator, reader:*std.Io.Reader, opts:Opts) Interp {
     return .{
         .alloc = alloc,
         .reader = reader,
