@@ -155,13 +155,12 @@ fn run(self:*VM) InterpResult {
                 var v = self.pop();
                 if (!v.is_signed())
                     return .runtime(error.SignError, "negate");
-                const new:Value = if (v.is_float()) switch (v) {
-                    .f64 => .{ .f64 = -v.f64 },
-                    .f32 => .{ .f32 = -v.f32 },
+                const new:Value = switch (v) {
+                    inline .int, .s8, .s16, .s32, .s64,
+                        => |i| .mk_int(std.meta.activeTag(v), @TypeOf(i), -i),
+                    inline .f64, .f32
+                        => |f| .mk_float(std.meta.activeTag(v), @TypeOf(f), -f),
                     else => unreachable,
-                } else blk: {
-                    const n = -v.cast_to_zig_int(i256);
-                    break :blk .mk_int(v, i256, n);
                 };
                 self.push(new);
             },

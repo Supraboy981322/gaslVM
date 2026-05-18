@@ -37,17 +37,6 @@ pub const Value = union(enum) {
 
     name_literal:[]u8, // NOTE: prefixed by a '.' (dot)
 
-    pub fn cast_to_zig_int(self:Value, comptime T:type) T {
-        return switch (self) {
-            inline .int, .byte, .uint,
-            .s8, .s16, .s32, .s64,
-            .u16, .u32, .u64
-                => |i| @intCast(i),
-            inline .f32, .f64 => |f| @intFromFloat(f),
-            else => unreachable, //invalid internal int cast
-        };
-    }
-
     pub fn cast_Z(self:Value, comptime T:type) !T {
         return switch (self) {
             inline .int, .byte, .uint,
