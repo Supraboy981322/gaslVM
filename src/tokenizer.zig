@@ -220,7 +220,57 @@ pub const TokenizerError = error {
   || std.fmt.ParseFloatError
   || std.mem.Allocator.Error;
 
-pub fn do(self:*Tokenizer, reader:*std.Io.Reader) TokenizerError![]Token {
+pub const TokenizeResult = union(enum) {
+    ok:[]Token,
+    err:struct{
+        info:?ErrInfo, // TODO: make this not optional
+        err:TokenizerError,
+
+        pub fn mk(e:TokenizerError, info:?ErrInfo) @This() {
+            return .{
+                .info = info,
+                .err = e,
+            };
+        }
+    },
+
+    pub const ErrInfo = struct {
+        //the exact error
+        err:TokenizerError,
+        //may contain some additional information
+        aux_str:?[]u8,
+        //a buffer used by the tokenizer (holds whitespace to current pos)
+        mem:[]u8,
+        //holds string type if not null (eg: '"')
+        string:?u8,
+        //last valid token (null if no valid tokens)
+        last_token:?Token,
+        //info about expected token
+        expected:struct{
+            type:?std.meta.Tag(Value)
+        },
+        //position in the source
+        pos:struct{
+            //the current byte
+            byte:usize,
+            //current line
+            line:struct {
+                number:usize,
+                string:[]u8,
+            },
+        },
+    };
+
+    pub fn mk_err(e:TokenizerError, info:?ErrInfo) TokenizeResult {
+        return .{ .err = .mk(e, info) };
+    }
+
+    pub fn okay(res:[]Token) TokenizeResult {
+        return .{ .ok = res };
+    }
+};
+
+pub fn do(self:*Tokenizer, reader:*std.Io.Reader) !TokenizeResult {
     self.reader = reader;
     self.ptrs = .init(self.alloc);
     self.labels = .init(self.alloc);
@@ -235,7 +285,9 @@ pub fn do(self:*Tokenizer, reader:*std.Io.Reader) TokenizerError![]Token {
 
         if (std.ascii.isWhitespace(b))
             if (self.mem.items.len > 0) {
-                const new = try self.determine() orelse continue;
+                const new = (self.determine() catch |e| {
+                    return .mk_err(e, try self.construct_err(e));
+                }) orelse continue;
                 try self.res.append(self.alloc, new);
                 continue;
             } else
@@ -250,11 +302,13 @@ pub fn do(self:*Tokenizer, reader:*std.Io.Reader) TokenizerError![]Token {
     }
 
     blk: {
-        const new = try self.determine() orelse break :blk;
+        const new = (self.determine() catch |e| {
+            return .mk_err(e, try self.construct_err(e));
+        }) orelse break :blk;
         try self.res.append(self.alloc, new);
     }
 
-    return self.res.toOwnedSlice(self.alloc);
+    return .okay(try self.res.toOwnedSlice(self.alloc));
 }
 
 pub fn determine(self:*Tokenizer) !?Token {
@@ -375,4 +429,44 @@ pub fn determine(self:*Tokenizer) !?Token {
 
     std.debug.print("(line: {d}) |{s}|\n", .{self.line_no, thing});
     return error.InvalidToken;
+}
+
+pub fn construct_err(self:*Tokenizer, err:TokenizerError) !TokenizeResult.ErrInfo {
+    return .{
+        .err = err,
+        .aux_str = try self.fmt_err(err),
+        .mem = try self.alloc.dupe(u8, self.mem.items),
+        .string = self.string,
+        .last_token = self.res.getLastOrNull(),
+        .expected = .{
+            .type = self.type,
+        },
+        .pos = .{
+            //the current byte
+            .byte = self.pos.byte,
+            //current line
+            .line = .{
+                .number = self.line_no,
+                .string = self.pos.line orelse "",
+            },
+        },
+    };
+}
+
+pub fn fmt_err(self:*Tokenizer, err:TokenizerError) !?[]u8 {
+    inline for ([_]type{
+        std.fmt.ParseIntError,
+        std.fmt.ParseFloatError,
+        std.mem.Allocator.Error,
+    }) |T|
+        if (hlp.err_is_of_type(err, T)) return err;
+    var res:std.Io.Writer.Allocating = .init(self.alloc);
+    defer res.deinit();
+    switch (err) {
+        error.UnknownIdent => {
+            try res.writer.print("line:{d} |{s}|", .{self.line_no, self.mem.items});
+        },
+        else => std.debug.panic("{t}\nTODO: format this error\n", .{err}),
+    }
+    return try res.toOwnedSlice();
 }
