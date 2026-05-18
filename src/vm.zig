@@ -180,7 +180,13 @@ fn run(self:*VM) InterpResult {
 
             .not => self.push(.{ .bool = !self.pop().bool }),
 
-            .jmp => self.ip = self.chunk.?.code.items.ptr + self.pop().pos,
+            inline .jmp, .jmpif => |which| {
+                const pos = self.pop().pos;
+                if (comptime which == .jmp)
+                    self.ip = self.chunk.?.code.items.ptr + pos;
+                const cond = self.pop().bool;
+                if (cond) self.ip = self.chunk.?.code.items.ptr + pos;
+            },
 
             inline .eql, .greater, .less => |o| {
                 const two = self.pop();
@@ -249,12 +255,6 @@ fn run(self:*VM) InterpResult {
                 self.vm_alloc.put(ptr.ptr.val.?, val.byte) catch |e| {
                     return .runtime(e, "save");
                 };
-            },
-
-            .jmpif => {
-                const pos = self.pop().pos;
-                const cond = self.pop().bool;
-                if (cond) self.ip = self.chunk.?.code.items.ptr + pos;
             },
 
             inline .get, .getH => |which| {
