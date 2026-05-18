@@ -62,154 +62,6 @@ pub fn deinit(self:*Tokenizer, opts:DeinitOpts) void {
     self.labels.deinit();
 }
 
-pub const SeekError = error {
-    ReadFailed,
-    NotInitialized,
-}
-  //for tracking the current line in state (for rich errors)
-  || std.Io.Writer.Error
-  || std.mem.Allocator.Error;
-
-pub fn next(self:*Tokenizer) SeekError!?u8 {
-    if (self.reader == null) return error.NotInitialized;
-    return
-        if (self.reader.?.takeByte()) |byte|
-            try self.seek_hook(byte, .advance)
-        else |err| switch (err) {
-            error.EndOfStream => null,
-            error.ReadFailed => error.ReadFailed,
-        };
-}
-
-pub fn peek(self:*Tokenizer) SeekError!u8 {
-    if (self.reader == null) return error.NotInitialized;
-    return
-        if (self.reader.?.peekByte()) |byte|
-            try self.seek_hook(byte, .stay) orelse 0
-        else |err| switch (err) {
-            error.EndOfStream => 0,
-            error.ReadFailed => error.ReadFailed,
-        };
-}
-
-//gets the nth byte from cur pos
-pub fn peekN(self:*Tokenizer, n:usize) SeekError!u8 {
-    if (self.reader == null) return error.NotInitialized;
-    return
-        if (self.reader.?.peek(n)) |c|
-            try self.seek_hook(c[c.len-1], .stay) orelse 0
-        else |err| switch (err) {
-            error.EndOfStream => 0,
-            error.ReadFailed => error.ReadFailed,
-        };
-}
-
-pub fn toss(self:*Tokenizer, n:usize) error{NotInitialized}!void {
-    if (self.reader == null) return error.NotInitialized;
-    self.reader.?.toss(n);
-}
-
-pub fn peek_word(self:*Tokenizer) ![]u8 {
-    var res:[]u8 = try self.alloc.alloc(u8, 0);
-    while (std.ascii.isWhitespace(try self.peek())) try self.toss(1);
-    var o:usize = 1;
-    while (true) {
-        defer o += 1;
-        const b = try self.peekN(o);
-        if (b == 0) break;
-        if (std.ascii.isWhitespace(b) or b == ';') return res;
-        var new = try self.alloc.alloc(u8, res.len+1);
-        for (0..res.len) |i| new[i] = res[i];
-        new[new.len-1] = b;
-        self.alloc.free(res);
-        res = new;
-    }
-    return res;
-}
-
-pub fn take_word_if_eql(self:*Tokenizer, target:[]const u8) !?[]u8 {
-    const word = try self.peek_word();
-    if (std.mem.eql(u8, target, word)) {
-        self.toss(word.len);
-        return word;
-    }
-    self.alloc.free(word);
-    return null;
-}
-
-pub fn take_word(self:*Tokenizer) ![]u8 {
-    const w = try self.peek_word();
-    try self.toss(w.len);
-    return w;
-}
-
-pub fn toss_word(self:*Tokenizer) !void {
-    self.alloc.free(try self.take_word());
-}
-
-pub fn toss_word_if_eql(self:*Tokenizer, target:[]const u8) !bool {
-    if (try self.take_word_if_eql(target)) |match| {
-        self.alloc.free(match);
-        return true;
-    }
-    return false;
-}
-
-pub fn bump_line(self:*Tokenizer) !void {
-    self.line_no += 1;
-    if (self.pos.line) |line| self.alloc.free(line);
-    self.pos.line = self.reader.?.peekDelimiterExclusive('\n') catch |e| blk: {
-        switch (e) {
-            error.EndOfStream, error.StreamTooLong => {
-                var res:std.Io.Writer.Allocating = .init(self.alloc);
-                defer res.deinit();
-                while (self.peek() catch null) |b|
-                    if (b != '\n')
-                        try res.writer.writeAll(&[_]u8{b})
-                    else
-                        break;
-                break :blk try res.toOwnedSlice();
-            },
-            error.ReadFailed => |err| return err,
-        }
-    };
-}
-
-pub fn seek_hook(self:*Tokenizer, b:u8, action:enum{advance, stay}) !?u8 {
-    self.pos.byte += 1;
-    if (b == '\n') {
-        self.line_no += 1;
-        try self.bump_line();
-    }
-    if (b == ';') while (true) {
-        const skipped = self.reader.?.discardDelimiterInclusive('\n') catch |e| {
-            return switch (e) {
-                error.EndOfStream => null,
-                error.ReadFailed => error.ReadFailed
-            };
-        };
-        self.pos.byte += skipped;
-        try self.bump_line();
-        return if (action == .stay) try self.peek() else try self.next();
-    };
-    return b;
-}
-
-pub fn delim(
-    self:*Tokenizer,
-    b:u8,
-    comptime what:enum{ toss, take, peek }
-) !if (what == .toss) void else []u8 {
-    return switch (what) {
-        .toss => while (true) {
-            const c = try self.peek();
-            if (c == b or c == 0) break;
-        },
-        .take => try self.reader.?.takeDelimiter(b),
-        .peek => try self.reader.?.peekDelimiterExclusive(b),
-    };
-}
-
 pub const TokenizerError = error {
     UnknownType,
     TypeMissmatch,
@@ -459,3 +311,152 @@ pub fn construct_err(self:*Tokenizer, err:TokenizerError) !TokenizeResult.ErrInf
         },
     };
 }
+
+pub const SeekError = error {
+    ReadFailed,
+    NotInitialized,
+}
+  //for tracking the current line in state (for rich errors)
+  || std.Io.Writer.Error
+  || std.mem.Allocator.Error;
+
+pub fn next(self:*Tokenizer) SeekError!?u8 {
+    if (self.reader == null) return error.NotInitialized;
+    return
+        if (self.reader.?.takeByte()) |byte|
+            try self.seek_hook(byte, .advance)
+        else |err| switch (err) {
+            error.EndOfStream => null,
+            error.ReadFailed => error.ReadFailed,
+        };
+}
+
+pub fn peek(self:*Tokenizer) SeekError!u8 {
+    if (self.reader == null) return error.NotInitialized;
+    return
+        if (self.reader.?.peekByte()) |byte|
+            try self.seek_hook(byte, .stay) orelse 0
+        else |err| switch (err) {
+            error.EndOfStream => 0,
+            error.ReadFailed => error.ReadFailed,
+        };
+}
+
+//gets the nth byte from cur pos
+pub fn peekN(self:*Tokenizer, n:usize) SeekError!u8 {
+    if (self.reader == null) return error.NotInitialized;
+    return
+        if (self.reader.?.peek(n)) |c|
+            try self.seek_hook(c[c.len-1], .stay) orelse 0
+        else |err| switch (err) {
+            error.EndOfStream => 0,
+            error.ReadFailed => error.ReadFailed,
+        };
+}
+
+pub fn toss(self:*Tokenizer, n:usize) error{NotInitialized}!void {
+    if (self.reader == null) return error.NotInitialized;
+    self.reader.?.toss(n);
+}
+
+pub fn peek_word(self:*Tokenizer) ![]u8 {
+    var res:[]u8 = try self.alloc.alloc(u8, 0);
+    while (std.ascii.isWhitespace(try self.peek())) try self.toss(1);
+    var o:usize = 1;
+    while (true) {
+        defer o += 1;
+        const b = try self.peekN(o);
+        if (b == 0) break;
+        if (std.ascii.isWhitespace(b) or b == ';') return res;
+        var new = try self.alloc.alloc(u8, res.len+1);
+        for (0..res.len) |i| new[i] = res[i];
+        new[new.len-1] = b;
+        self.alloc.free(res);
+        res = new;
+    }
+    return res;
+}
+
+pub fn take_word_if_eql(self:*Tokenizer, target:[]const u8) !?[]u8 {
+    const word = try self.peek_word();
+    if (std.mem.eql(u8, target, word)) {
+        self.toss(word.len);
+        return word;
+    }
+    self.alloc.free(word);
+    return null;
+}
+
+pub fn take_word(self:*Tokenizer) ![]u8 {
+    const w = try self.peek_word();
+    try self.toss(w.len);
+    return w;
+}
+
+pub fn toss_word(self:*Tokenizer) !void {
+    self.alloc.free(try self.take_word());
+}
+
+pub fn toss_word_if_eql(self:*Tokenizer, target:[]const u8) !bool {
+    if (try self.take_word_if_eql(target)) |match| {
+        self.alloc.free(match);
+        return true;
+    }
+    return false;
+}
+
+pub fn bump_line(self:*Tokenizer) !void {
+    self.line_no += 1;
+    if (self.pos.line) |line| self.alloc.free(line);
+    self.pos.line = self.reader.?.peekDelimiterExclusive('\n') catch |e| blk: {
+        switch (e) {
+            error.EndOfStream, error.StreamTooLong => {
+                var res:std.Io.Writer.Allocating = .init(self.alloc);
+                defer res.deinit();
+                while (self.peek() catch null) |b|
+                    if (b != '\n')
+                        try res.writer.writeAll(&[_]u8{b})
+                    else
+                        break;
+                break :blk try res.toOwnedSlice();
+            },
+            error.ReadFailed => |err| return err,
+        }
+    };
+}
+
+pub fn seek_hook(self:*Tokenizer, b:u8, action:enum{advance, stay}) !?u8 {
+    self.pos.byte += 1;
+    if (b == '\n') {
+        self.line_no += 1;
+        try self.bump_line();
+    }
+    if (b == ';') while (true) {
+        const skipped = self.reader.?.discardDelimiterInclusive('\n') catch |e| {
+            return switch (e) {
+                error.EndOfStream => null,
+                error.ReadFailed => error.ReadFailed
+            };
+        };
+        self.pos.byte += skipped;
+        try self.bump_line();
+        return if (action == .stay) try self.peek() else try self.next();
+    };
+    return b;
+}
+
+pub fn delim(
+    self:*Tokenizer,
+    b:u8,
+    comptime what:enum{ toss, take, peek }
+) !if (what == .toss) void else []u8 {
+    return switch (what) {
+        .toss => while (true) {
+            const c = try self.peek();
+            if (c == b or c == 0) break;
+        },
+        .take => try self.reader.?.takeDelimiter(b),
+        .peek => try self.reader.?.peekDelimiterExclusive(b),
+    };
+}
+
