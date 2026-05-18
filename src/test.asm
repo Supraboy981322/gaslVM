@@ -41,7 +41,5 @@ push $str getH ;get host pointer
 push 1         ;stdout
 push .write
 push byte 3
-syscall
-
-push void
+  syscall
   return
