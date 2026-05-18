@@ -11,12 +11,15 @@ pub fn build(b: *std.Build) !void {
         const stack_size = b.option(usize, "stack_size", "set the stack size") orelse 256;
         opts.addOption(usize, "stack_size", stack_size);
     }
-
     const mod_root = b.option([]const u8, "mod_root", "override module root dir") orelse "src";
-    _ = try module(b, opts, target, optimize, mod_root);
+    const common = b.createModule(.{
+        .root_source_file = b.path("common/common.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const mod = try module(b, opts, target, optimize, mod_root, common);
     try tests(b, opts, target, optimize, mod_root);
-    try cli(b, opts, target, optimize);
-
+    try cli(b, opts, target, optimize, mod, common);
 }
 
 fn cli(
@@ -24,16 +27,21 @@ fn cli(
     opts:*std.Build.Step.Options,
     target:std.Build.ResolvedTarget,
     optimize:?std.builtin.OptimizeMode,
+    mod:*std.Build.Module,
+    common:*std.Build.Module,
 ) !void {
     const cli_root = b.option([]const u8, "cli_root", "override cli root dir") orelse "cli";
     const bin = b.addExecutable(.{
-        .name = "gaslVM",
+        .name = "gaslVM-cli",
         .root_module = b.createModule(.{
             .root_source_file = b.path(b.pathJoin(&.{ cli_root, "main.zig"})),
             .target = target,
             .optimize = optimize,
         }),
     });
+    bin.root_module.addImport("gaslVM", mod);
+    bin.root_module.addImport("common", common);
+
     bin.root_module.addOptions("options", opts);
     b.installArtifact(bin);
 
@@ -50,7 +58,8 @@ fn module(
     opts:*std.Build.Step.Options,
     target:std.Build.ResolvedTarget,
     optimize:?std.builtin.OptimizeMode,
-    mod_root:[]const u8
+    mod_root:[]const u8,
+    common:*std.Build.Module,
 ) !*std.Build.Module {
     var mod = b.addModule("gaslVM", .{
         .root_source_file = b.path(b.pathJoin(&.{ mod_root, "gaslVM.zig" })),
@@ -58,6 +67,7 @@ fn module(
         .optimize = optimize,
     });
     mod.addOptions("options", opts);
+    mod.addImport("common", common);
     return mod;
 }
 
