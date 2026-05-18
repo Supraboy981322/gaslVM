@@ -126,7 +126,25 @@ pub fn main(init:std.process.Init) !void {
                 );
             },
             .tokenize_err => |e| {
-                std.debug.print("{any}", .{e});
+                std.debug.print(
+                    \\tokenizer error: {t}
+                    \\    line:{d} (byte {d}) -> {s}
+                    \\ last valid token: {any}
+                    \\ expected: {s}
+                ++ "\n", .{
+                    e.err,
+                    e.info.pos.line.number, e.info.pos.byte,
+                    e.info.pos.line.string, // TODO: syntax highlighting
+                    e.info.last_token,
+                    if (e.info.expected.type) |ex| @tagName(ex) else "not that",
+                });
+                if (e.info.mem.len > 0) std.debug.print(
+                    " tokenizer memory: ({x}) |{s}|\n",
+                    .{e.info.mem, e.info.mem}
+                );
+                if (e.info.aux_str) |a|
+                    std.debug.print(" additional info: {s}\n", .{a});
+
             },
             .ok => unreachable,
         }
