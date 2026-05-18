@@ -175,7 +175,7 @@ fn run(self:*VM) InterpResult {
                 self.push(.math(op, one, two));
             },
 
-            .true, .false => |o| self.push(.{ .bool = o == .true }),
+            inline .true, .false => |o| self.push(.{ .bool = o == .true }),
             .null => self.push(.null),
 
             .not => self.push(.{ .bool = !self.pop().bool }),
