@@ -24,7 +24,8 @@ line_no:usize = 0,
 pos:struct{
     line:?[]u8 = null,
     byte:usize = 0,
-} = .{},
+    arena:std.heap.ArenaAllocator,
+},
 
 reader:?*std.Io.Reader = null,
 
@@ -37,6 +38,7 @@ pub fn init(alloc:std.mem.Allocator) Tokenizer {
         .alloc = alloc,
         .ptrs = undefined,
         .labels = undefined,
+        .pos = .{ .arena = .init(alloc) },
     };
 }
 
@@ -406,18 +408,23 @@ pub fn toss_word_if_eql(self:*Tokenizer, target:[]const u8) !bool {
 }
 
 pub fn bump_line(self:*Tokenizer) !void {
+    _ = self.pos.arena.reset(.free_all);
     self.line_no += 1;
-    if (self.pos.line) |line| self.alloc.free(line);
     self.pos.line = self.reader.?.peekDelimiterExclusive('\n') catch |e| blk: {
         switch (e) {
             error.EndOfStream, error.StreamTooLong => {
-                var res:std.Io.Writer.Allocating = .init(self.alloc);
+                var res:std.Io.Writer.Allocating = .init(self.pos.arena.allocator());
                 defer res.deinit();
-                while (self.peek() catch null) |b|
+                var offset:usize = 1;
+                while (true) : (offset += 1) {
+                    const b = try self.peekN(offset);
+                    if (b == 0) break;
+                    std.debug.print("{d}", .{b});
                     if (b != '\n')
                         try res.writer.writeAll(&[_]u8{b})
                     else
                         break;
+                }
                 break :blk try res.toOwnedSlice();
             },
             error.ReadFailed => |err| return err,
@@ -427,10 +434,7 @@ pub fn bump_line(self:*Tokenizer) !void {
 
 pub fn seek_hook(self:*Tokenizer, b:u8, action:enum{advance, stay}) !?u8 {
     self.pos.byte += 1;
-    if (b == '\n') {
-        self.line_no += 1;
-        try self.bump_line();
-    }
+    if (b == '\n') try self.bump_line();
     if (b == ';') while (true) {
         const skipped = self.reader.?.discardDelimiterInclusive('\n') catch |e| {
             return switch (e) {
