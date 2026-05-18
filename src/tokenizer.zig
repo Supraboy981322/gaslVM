@@ -19,7 +19,12 @@ res:std.ArrayList(Token) = .empty,
 string:?u8 = null,
 type:?std.meta.Tag(Value) = null,
 
+// TODO: merge these
 line_no:usize = 0,
+pos:struct{
+    line:?[]u8 = null,
+    byte:usize = 0,
+} = .{},
 
 reader:?*std.Io.Reader = null,
 
@@ -60,7 +65,10 @@ pub fn deinit(self:*Tokenizer, opts:DeinitOpts) void {
 pub const SeekError = error {
     ReadFailed,
     NotInitialized,
-};
+}
+  //for tracking the current line in state (for rich errors)
+  || std.Io.Writer.Error
+  || std.mem.Allocator.Error;
 
 pub fn next(self:*Tokenizer) SeekError!?u8 {
     if (self.reader == null) return error.NotInitialized;
@@ -147,12 +155,41 @@ pub fn toss_word_if_eql(self:*Tokenizer, target:[]const u8) !bool {
     return false;
 }
 
+pub fn bump_line(self:*Tokenizer) !void {
+    self.line_no += 1;
+    if (self.pos.line) |line| self.alloc.free(line);
+    self.pos.line = self.reader.?.peekDelimiterExclusive('\n') catch |e| blk: {
+        switch (e) {
+            error.EndOfStream, error.StreamTooLong => {
+                var res:std.Io.Writer.Allocating = .init(self.alloc);
+                defer res.deinit();
+                while (self.peek() catch null) |b|
+                    if (b != '\n')
+                        try res.writer.writeAll(&[_]u8{b})
+                    else
+                        break;
+                break :blk try res.toOwnedSlice();
+            },
+            error.ReadFailed => |err| return err,
+        }
+    };
+}
+
 pub fn seek_hook(self:*Tokenizer, b:u8, action:enum{advance, stay}) !?u8 {
+    self.pos.byte += 1;
+    if (b == '\n') {
+        self.line_no += 1;
+        try self.bump_line();
+    }
     if (b == ';') while (true) {
-        _ = self.reader.?.discardDelimiterInclusive('\n') catch |e| return switch (e) {
-            error.EndOfStream => null,
-            error.ReadFailed => error.ReadFailed
+        const skipped = self.reader.?.discardDelimiterInclusive('\n') catch |e| {
+            return switch (e) {
+                error.EndOfStream => null,
+                error.ReadFailed => error.ReadFailed
+            };
         };
+        self.pos.byte += skipped;
+        try self.bump_line();
         return if (action == .stay) try self.peek() else try self.next();
     };
     return b;
@@ -190,8 +227,6 @@ pub fn do(self:*Tokenizer, reader:*std.Io.Reader) TokenizerError![]Token {
     var string:?u8 = null;
 
     while (try self.next()) |b| {
-        if (b == '\n') self.line_no += 1;
-
         if (string) |s| {
             if (s == b) string = null;
             try self.mem.append(self.alloc, b);
