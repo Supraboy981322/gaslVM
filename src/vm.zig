@@ -266,8 +266,8 @@ fn run(self:*VM) InterpResult {
                 var ptr = self.pop().ptr;
                 if (ptr.val == null)
                     ptr = self.chunk.?.constants.items[ptr.ident].ptr;
-                const val = self.pop();
-                self.vm_alloc.put(ptr.val.?, val.byte) catch |e| {
+                const val = self.pop().cast_Z(u8) catch |e| return .runtime(e, "overwrite");
+                self.vm_alloc.put(ptr.val.?, val) catch |e| {
                     return .runtime(e, "overwrite");
                 };
             },
