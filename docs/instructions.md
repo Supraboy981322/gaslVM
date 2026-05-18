@@ -45,6 +45,7 @@ a usage example is included for most instructions
 - `syscall`
   makes a syscall to either host's OS or a hook to code outside the VM (ie: a Zig function)
   (assuming that `$string` is pointer to a string and `$idx` is the length of the string)
+  TODO: said hooks
   ```asm
   push $idx get  ;string length 
   push $string getH ;get host pointer
