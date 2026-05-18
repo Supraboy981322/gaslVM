@@ -275,11 +275,12 @@ fn run(self:*VM) InterpResult {
             },
             .free => {
                 const len = self.pop().byte;
-                const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
+                const ptr:*value.Ptr = &self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
                 if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "free");
                 self.vm_alloc.free(ptr.val.?, @intCast(len)) catch |e| {
                     return .runtime(e, "free");
                 };
+                ptr.val = null;
             },
             inline .ptr_add, .ptr_sub => |op| {
                 var ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
