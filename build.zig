@@ -13,9 +13,9 @@ pub fn build(b: *std.Build) !void {
     }
 
     const mod_root = b.option([]const u8, "mod_root", "override module root dir") orelse "src";
-    const mod =try module(b, opts, target, optimize, mod_root);
+    _ = try module(b, opts, target, optimize, mod_root);
     try tests(b, opts, target, optimize, mod_root);
-    try cli(b, opts, target, optimize, mod);
+    try cli(b, opts, target, optimize);
 
 }
 
@@ -24,7 +24,6 @@ fn cli(
     opts:*std.Build.Step.Options,
     target:std.Build.ResolvedTarget,
     optimize:?std.builtin.OptimizeMode,
-    mod:*std.Build.Module,
 ) !void {
     const cli_root = b.option([]const u8, "cli_root", "override cli root dir") orelse "cli";
     const bin = b.addExecutable(.{
