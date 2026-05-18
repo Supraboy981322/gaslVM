@@ -1,4 +1,5 @@
 const std = @import("std");
+const VM = @import("vm.zig");
 const common = @import("common.zig");
 
 const Chunk = @import("chunk.zig").Chunk;
@@ -89,7 +90,7 @@ pub const Value = union(enum) {
         return self.is_int() or self.is_float();
     }
 
-    pub fn dupe(self:*Value, alloc:std.mem.Allocator) !Value {
+    pub fn dupe(self:*Value, alloc:std.mem.Allocator, vm:*VM) !Value {
         return switch (self.*) {
             //.string => |str| .{ .string = try alloc.dupe(u8, str) },
 
@@ -114,14 +115,12 @@ pub const Value = union(enum) {
             .void => .void,
 
             // TODO: dupe ptr
-            .ptr => |ptr| {
-                if (ptr.val != null) @panic("TODO: Value.ptr.dupe(...) //when not null");
-                return .{
-                    .ptr = .{
-                        .ident = ptr.ident,
-                        .val = null
-                    },
-                };
+            .ptr => |ptr| .{
+                .byte = 
+                    if (ptr.val) |v|
+                        (try vm.vm_alloc.get(v, 1))[0]
+                    else
+                        return .{ .ptr = ptr }
             },
             .pos  => @panic("TODO: Value.(ptr|pos).dupe(...)"),
 
