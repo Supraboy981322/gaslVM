@@ -1,7 +1,7 @@
 const std = @import("std");
 const Token = @import("token.zig");
 const chunk = @import("chunk.zig");
-const hlp = @import("helpers.zig");
+const hlp = @import("common").helpers;
 
 const parseInt = std.fmt.parseInt;
 const parseFloat = std.fmt.parseFloat;
