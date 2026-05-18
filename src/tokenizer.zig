@@ -432,9 +432,16 @@ pub fn determine(self:*Tokenizer) !?Token {
 }
 
 pub fn construct_err(self:*Tokenizer, err:TokenizerError) !TokenizeResult.ErrInfo {
+    inline for ([_]type{
+        std.fmt.ParseIntError,
+        std.fmt.ParseFloatError,
+        std.mem.Allocator.Error,
+        std.Io.Writer.Error,
+    }) |T|
+        if (hlp.err_is_of_type(err, T)) return err;
     return .{
         .err = err,
-        .aux_str = try self.fmt_err(err),
+        .aux_str = null,
         .mem = try self.alloc.dupe(u8, self.mem.items),
         .string = self.string,
         .last_token = self.res.getLastOrNull(),
@@ -451,22 +458,4 @@ pub fn construct_err(self:*Tokenizer, err:TokenizerError) !TokenizeResult.ErrInf
             },
         },
     };
-}
-
-pub fn fmt_err(self:*Tokenizer, err:TokenizerError) !?[]u8 {
-    inline for ([_]type{
-        std.fmt.ParseIntError,
-        std.fmt.ParseFloatError,
-        std.mem.Allocator.Error,
-    }) |T|
-        if (hlp.err_is_of_type(err, T)) return err;
-    var res:std.Io.Writer.Allocating = .init(self.alloc);
-    defer res.deinit();
-    switch (err) {
-        error.UnknownIdent => {
-            try res.writer.print("line:{d} |{s}|", .{self.line_no, self.mem.items});
-        },
-        else => std.debug.panic("{t}\nTODO: format this error\n", .{err}),
-    }
-    return try res.toOwnedSlice();
 }
