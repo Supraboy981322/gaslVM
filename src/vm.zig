@@ -257,21 +257,17 @@ fn run(self:*VM) InterpResult {
                 if (cond) self.ip = self.chunk.?.code.items.ptr + pos;
             },
 
-            .get => {
-                const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
-                if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "get");
-                const val = (self.vm_alloc.get(ptr.val.?, 1) catch |e| {
-                    return .runtime(e, "get");
-                })[0];
-                self.push(.{ .byte = val });
-            },
-            .getH => {
+            inline .get, .getH => |which| {
                 const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
                 if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "get");
                 const val = self.vm_alloc.get(ptr.val.?, 1) catch |e| {
-                    return .runtime(e, "getH");
+                    return .runtime(e, "get");
                 };
-                self.push(.{ .u64 = @intFromPtr(val) });
+                self.push(
+                    if (which == .getH)
+                        .{ .u64 = @intFromPtr(val) }
+                    else
+                        .{ .byte = val[0] });
             },
 
             .overwrite => {
