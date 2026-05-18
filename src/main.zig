@@ -115,18 +115,21 @@ pub fn main(init:std.process.Init) !void {
     defer interpreter.deinit();
     const res = try interpreter.do();
     if (res != .ok) {
-        const e, const i =
-            if (res == .runtime_err)
-                .{ res.runtime_err.err, res.runtime_err.info }
-            else
-                .{ res.compile_err.err, res.compile_err.info };
-        std.debug.print(
-            \\
-            \\
-            \\error {s} -> {t}
-            \\(TODO: better error messages)
-            ++ "\n", .{i, e}
-        );
+        switch (res) {
+            inline .runtime_err, .compile_err => |e| {
+                std.debug.print(
+                    \\
+                    \\
+                    \\error {s} -> {t}
+                    \\(TODO: better error messages)
+                    ++ "\n", .{ e.info, e.err }
+                );
+            },
+            .tokenize_err => |e| {
+                std.debug.print("{any}", .{e});
+            },
+            .ok => unreachable,
+        }
         std.process.abort();
     }
 
