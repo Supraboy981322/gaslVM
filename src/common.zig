@@ -5,6 +5,12 @@ pub fn Error(err:type, info:type) type {
     return struct {
         err:err,
         info:info,
+        pub fn mk(e:err, i:info) @This() {
+            return .{
+                .err = e,
+                .info = i,
+            };
+        }
     };
 }
 
