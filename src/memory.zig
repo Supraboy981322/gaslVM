@@ -10,6 +10,12 @@ pub const VM_Allocator = struct {
     taken:[]bool,
     mode:common.Mode,
 
+    pub const Error = error {
+        SegFault,
+        InvalidFree,
+        OutOfMemory,
+    };
+
     const Self = @This();
 
     pub fn init(mem_size:u16, mode:common.Mode) !Self {

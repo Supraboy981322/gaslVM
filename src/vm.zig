@@ -27,7 +27,7 @@ pub const RuntimeError = error {
     InvalidSyscall,
     NotANumber,
     BadPtr,
-} || std.mem.Allocator.Error;
+} || std.mem.Allocator.Error || Alloc.Error;
 
 const VM = @This();
 
