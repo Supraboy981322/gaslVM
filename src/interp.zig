@@ -69,8 +69,8 @@ pub fn do(self:*Interp) !VM.InterpResult {
     defer vm.deinit();
     var res = vm.interpret(&compiled);
     switch (res) {
-        .ok => |*ok| return .okay(try ok.dupe(self.alloc)),
-        .compile_err => |e| return .{
+        .ok => |*ok| return .okay(try ok.dupe(self.alloc, &vm)),
+        .runtime_err => |e| return .{
             .compile_err = .{
                 .err = e.err,
                 .info = blk: {
