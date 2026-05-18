@@ -1,6 +1,9 @@
-# a bytecode VM with a basic asm-like language compiler
+# gaslVM
+Generic and Simple Language VM
 
-example:
+## examples
+
+This returns `-25.760002`:
 ```asm
 push f32 1.2
 push f32 3.4
@@ -10,12 +13,8 @@ push f32 5.6
   negate
   return
 ```
-Which returns `-25.760002`
 
-### It can also make syscalls
-
-(this prints `aaaaaaaaaa` to stdout)
-
+Making a Linux syscall (this constructs a string (`aaaaaaaaaa`) and prints it to stdout):
 ```asm
 ptr str
 push $str
