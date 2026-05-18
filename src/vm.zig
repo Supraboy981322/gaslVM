@@ -138,19 +138,45 @@ fn run(self:*VM) InterpResult {
         if (options.use_debug_trace)
             std.debug.print("\x1b[34mOPCODE:\x1b[0m {s}\n", .{@tagName(code)});
         switch (code) {
-            .no_op => {},
 
+            //generic OpCodes
+            .no_op => {},
+            .discard => _ = self.pop(),
             .@"return" => {
                 return .okay(self.pop());
             },
-
             .push => {
                 const v:*Value = self.read_const() catch |e| return .runtime(e, "push");
                 self.push(v.*);
                 if (options.use_debug_trace)
                     std.debug.print("\x1b[33mCONSTANT:\x1b[0m {any}\n", .{v.*});
             },
+            .syscall => {
+                const param_count = self.pop().cast_Z(usize) catch |e| {
+                    return .runtime(e, "syscall");
+                };
+                if (param_count > std.math.maxInt(u3)) {
+                    return .runtime(error.InvalidSyscallParam, null);
+                }
+                const name_str = self.pop().name_literal;
+                const syscall_name = std.meta.stringToEnum(
+                    std.posix.system.SYS, name_str
+                ) orelse return .runtime(error.InvalidSyscall, name_str);
+                _ = self.syscall(syscall_name, @intCast(param_count)) catch |e| {
+                    return .runtime(e, null);
+                };
+            },
+            inline .jmp, .jmpif => |which| {
+                const pos = self.pop().pos;
+                if (comptime which == .jmp)
+                    self.ip = self.chunk.?.code.items.ptr + pos;
+                const cond = self.pop().bool;
+                if (cond) self.ip = self.chunk.?.code.items.ptr + pos;
+            },
 
+
+
+            //math OpCodes
             .negate => {
                 var v = self.pop();
                 if (!v.is_signed())
@@ -164,7 +190,6 @@ fn run(self:*VM) InterpResult {
                 };
                 self.push(new);
             },
-
             inline .mult, .div, .add, .sub => |op| {
                 var two = self.pop();
                 var one = self.pop();
@@ -175,19 +200,16 @@ fn run(self:*VM) InterpResult {
                 self.push(.math(op, one, two));
             },
 
+
+
+            //instructions for common values
             inline .true, .false => |o| self.push(.{ .bool = o == .true }),
             .null => self.push(.null),
 
+
+
+            //boolean stuff
             .not => self.push(.{ .bool = !self.pop().bool }),
-
-            inline .jmp, .jmpif => |which| {
-                const pos = self.pop().pos;
-                if (comptime which == .jmp)
-                    self.ip = self.chunk.?.code.items.ptr + pos;
-                const cond = self.pop().bool;
-                if (cond) self.ip = self.chunk.?.code.items.ptr + pos;
-            },
-
             inline .eql, .greater, .less => |o| {
                 const two = self.pop();
                 const one = self.pop();
@@ -200,6 +222,8 @@ fn run(self:*VM) InterpResult {
                 self.push(res);
             },
 
+
+
             // WARNING: only valid in Zig debug builds
             .print =>
                 if (@import("builtin").mode == .Debug)
@@ -207,8 +231,37 @@ fn run(self:*VM) InterpResult {
                 else
                     return .runtime(error.IllegalInstruction, "print"),
 
-            .discard => _ = self.pop(),
+            // WARNING: DO NOT PROVIDE THESE OUT OF ORDER
 
+            //pointers and allocation
+            .save => {
+                const val = self.pop();
+                const ptr = self.pop();
+                self.vm_alloc.put(ptr.ptr.val.?, val.byte) catch |e| {
+                    return .runtime(e, "save");
+                };
+            },
+            inline .get, .getH => |which| {
+                const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
+                if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "get");
+                const val = self.vm_alloc.get(ptr.val.?, 1) catch |e| {
+                    return .runtime(e, "get");
+                };
+                self.push(
+                    if (which == .getH)
+                        .{ .u64 = @intFromPtr(val) }
+                    else
+                        .{ .byte = val[0] });
+            },
+            .overwrite => {
+                var ptr = self.pop().ptr;
+                if (ptr.val == null)
+                    ptr = self.chunk.?.constants.items[ptr.ident].ptr;
+                const val = self.pop();
+                self.vm_alloc.put(ptr.val.?, val.byte) catch |e| {
+                    return .runtime(e, "overwrite");
+                };
+            },
             // TODO: maybe replace this
             .alloc => {
                 const len = self.pop().byte;
@@ -219,7 +272,6 @@ fn run(self:*VM) InterpResult {
                 self.chunk.?.constants.items[ptr.ptr.ident] = ptr;
                 self.push(ptr);
             },
-
             .free => {
                 const len = self.pop().byte;
                 const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
@@ -228,8 +280,6 @@ fn run(self:*VM) InterpResult {
                     return .runtime(e, "free");
                 };
             },
-
-            // WARNING: DO NOT PROVIDE THESE OUT OF ORDER
             inline .ptr_add, .ptr_sub => |op| {
                 var ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
                 const other = self.pop().cast_Z(u16) catch |e| {
@@ -249,52 +299,7 @@ fn run(self:*VM) InterpResult {
                 self.push(.{ .ptr = ptr });
             },
 
-            .save => {
-                const val = self.pop();
-                const ptr = self.pop();
-                self.vm_alloc.put(ptr.ptr.val.?, val.byte) catch |e| {
-                    return .runtime(e, "save");
-                };
-            },
 
-            inline .get, .getH => |which| {
-                const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
-                if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "get");
-                const val = self.vm_alloc.get(ptr.val.?, 1) catch |e| {
-                    return .runtime(e, "get");
-                };
-                self.push(
-                    if (which == .getH)
-                        .{ .u64 = @intFromPtr(val) }
-                    else
-                        .{ .byte = val[0] });
-            },
-
-            .overwrite => {
-                var ptr = self.pop().ptr;
-                if (ptr.val == null)
-                    ptr = self.chunk.?.constants.items[ptr.ident].ptr;
-                const val = self.pop();
-                self.vm_alloc.put(ptr.val.?, val.byte) catch |e| {
-                    return .runtime(e, "overwrite");
-                };
-            },
-
-            .syscall => {
-                const param_count = self.pop().cast_Z(usize) catch |e| {
-                    return .runtime(e, "syscall");
-                };
-                if (param_count > std.math.maxInt(u3)) {
-                    return .runtime(error.InvalidSyscallParam, null);
-                }
-                const name_str = self.pop().name_literal;
-                const syscall_name = std.meta.stringToEnum(
-                    std.posix.system.SYS, name_str
-                ) orelse return .runtime(error.InvalidSyscall, name_str);
-                _ = self.syscall(syscall_name, @intCast(param_count)) catch |e| {
-                    return .runtime(e, null);
-                };
-            },
 
             else => return .runtime(
                 error.UnexpectedInstruction,
