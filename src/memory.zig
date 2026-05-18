@@ -42,7 +42,7 @@ pub const VM_Allocator = struct {
         var start:u16 = 0;
         for (0..self.taken.len) |i| {
             if (found == amount) {
-                for (start..i) |j| self.taken[start+j] = true;
+                for (start..i) |j| self.taken[j] = true;
                 return start;
             }
             if (self.taken[i])
