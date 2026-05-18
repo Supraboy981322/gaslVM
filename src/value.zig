@@ -114,7 +114,16 @@ pub const Value = union(enum) {
             .void => .void,
 
             // TODO: dupe ptr
-            .ptr, .pos  => @panic("TODO: Value.(ptr|pos).dupe(...)"),
+            .ptr => |ptr| {
+                if (ptr.val != null) @panic("TODO: Value.ptr.dupe(...) //when not null");
+                return .{
+                    .ptr = .{
+                        .ident = ptr.ident,
+                        .val = null
+                    },
+                };
+            },
+            .pos  => @panic("TODO: Value.(ptr|pos).dupe(...)"),
 
             .name_literal => |name| .{ .name_literal = try alloc.dupe(u8, name) },
         };
