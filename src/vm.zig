@@ -208,7 +208,9 @@ fn run(self:*VM) InterpResult {
             .alloc => {
                 const len = self.pop().byte;
                 var ptr = self.pop();
-                ptr.ptr.val = self.vm_alloc.alloc(len) catch |e| return .runtime(e, "alloc");
+                ptr.ptr.val = self.vm_alloc.alloc(len) catch |e| {
+                    return .runtime(e, "alloc");
+                };
                 self.chunk.?.constants.items[ptr.ptr.ident] = ptr;
                 self.push(ptr);
             },
@@ -217,7 +219,9 @@ fn run(self:*VM) InterpResult {
                 const len = self.pop().byte;
                 const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
                 if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "free");
-                self.vm_alloc.free(ptr.val.?, @intCast(len));
+                self.vm_alloc.free(ptr.val.?, @intCast(len)) catch |e| {
+                    return .runtime(e, "free");
+                };
             },
 
             // WARNING: DO NOT PROVIDE THESE OUT OF ORDER
@@ -243,7 +247,9 @@ fn run(self:*VM) InterpResult {
             .save => {
                 const val = self.pop();
                 const ptr = self.pop();
-                self.vm_alloc.put(ptr.ptr.val.?, val.byte);
+                self.vm_alloc.put(ptr.ptr.val.?, val.byte) catch |e| {
+                    return .runtime(e, "save");
+                };
             },
 
             .jmpif => {
@@ -255,13 +261,17 @@ fn run(self:*VM) InterpResult {
             .get => {
                 const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
                 if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "get");
-                const val = self.vm_alloc.get(ptr.val.?, 1)[0];
+                const val = (self.vm_alloc.get(ptr.val.?, 1) catch |e| {
+                    return .runtime(e, "get");
+                })[0];
                 self.push(.{ .byte = val });
             },
             .getH => {
                 const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
                 if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "get");
-                const val = self.vm_alloc.get(ptr.val.?, 1);
+                const val = self.vm_alloc.get(ptr.val.?, 1) catch |e| {
+                    return .runtime(e, "getH");
+                };
                 self.push(.{ .u64 = @intFromPtr(val) });
             },
 
@@ -270,7 +280,9 @@ fn run(self:*VM) InterpResult {
                 if (ptr.val == null)
                     ptr = self.chunk.?.constants.items[ptr.ident].ptr;
                 const val = self.pop();
-                self.vm_alloc.put(ptr.val.?, val.byte);
+                self.vm_alloc.put(ptr.val.?, val.byte) catch |e| {
+                    return .runtime(e, "overwrite");
+                };
             },
 
             .syscall => {

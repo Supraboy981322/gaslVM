@@ -55,23 +55,23 @@ pub const VM_Allocator = struct {
         return error.OutOfMemory;
     }
 
-    pub fn free(self:*Self, pos:u16, amount:u16) void {
+    pub fn free(self:*Self, pos:u16, amount:u16) !void {
         for (0..amount) |i| {
             if (self.taken[pos+i])
                 self.taken[pos+i] = false
             else
-                unreachable; //free of unallocated memory
-                //return error.SegFault; //free of unallocated memory
+                return error.InvalidFree; //free of unallocated memory
         }
     }
 
-    pub fn get(self:*Self, pos:u16, len:u16) [*]u8 {
-        //for (self.taken[pos..len]) |used| if (!used) return error.SegFault; //getting unallocated memory
+    pub fn get(self:*Self, pos:u16, len:u16) ![*]u8 {
+        for (self.taken[pos..pos+len]) |used|
+            if (!used) return error.SegFault; //getting unallocated memory
         return self.buf[pos..pos+len].ptr;
     }
 
-    pub fn put(self:*Self, pos:u16, what:u8) void {
-        //if (!self.taken[pos]) return error.SegFault; //setting unallocated memory
+    pub fn put(self:*Self, pos:u16, what:u8) !void {
+        if (!self.taken[pos]) return error.SegFault; //setting unallocated memory
         self.buf[pos] = what;
     }
 };
