@@ -11,3 +11,7 @@ pub fn cut(str:[]u8, thing:u8) ?[2][]u8 {
         if (b == thing) return .{ str[0..i], str[if (i+1 < str.len) i+1 else i..] };
     return null;
 }
+
+pub fn err_is_of_type(e:anyerror, comptime set:type) bool {
+    return std.mem.count(anyerror, std.meta.tags(set), &[_]anyerror{e}) > 0;
+}
