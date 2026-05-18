@@ -12,7 +12,7 @@ push byte 1
 push byte 0
   save
 
-pos loop
+pos create_string
 
   push 97
   push $idx
@@ -33,8 +33,15 @@ push $idx
 push 10
   eql
   not
-push @loop
+push @create_string
   jmpif
+
+ptr return_code
+push $return_code
+push byte 1
+  alloc
+push byte 0
+  save
 
 push $idx get  ;string length 
 push $str getH ;get host pointer
@@ -42,4 +49,18 @@ push 1         ;stdout
 push .write
 push byte 3
   syscall
+push $return_code
+  overwrite
+
+push $str
+push $idx
+  get
+  free
+
+push $idx
+push 1
+  free
+
+push $return_code
+  get
   return
