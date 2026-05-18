@@ -62,5 +62,4 @@ push 1
   free
 
 push $return_code
-  get
   return
