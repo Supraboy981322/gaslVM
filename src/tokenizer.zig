@@ -1,0 +1,343 @@
+const std = @import("std");
+const token = @import("token.zig");
+const chunk = @import("chunk.zig");
+const hlp = @import("helpers.zig");
+
+const parseInt = std.fmt.parseInt;
+const parseFloat = std.fmt.parseFloat;
+
+const OpCode = chunk.OpCode;
+const Token = token.Token;
+const Value = @import("value.zig").Value;
+
+const Tokenizer = @This();
+
+alloc:std.mem.Allocator,
+
+mem:std.ArrayList(u8) = .empty,
+res:std.ArrayList(Token) = .empty,
+string:?u8 = null,
+type:?std.meta.Tag(Value) = null,
+
+line_no:usize = 0,
+
+reader:?*std.Io.Reader = null,
+
+ptrs:std.StringHashMap(u16),
+labels:std.StringHashMap(usize),
+ident_counter:u16 = 0,
+
+pub fn init(alloc:std.mem.Allocator) Tokenizer {
+    return .{
+        .alloc = alloc,
+        .ptrs = undefined,
+        .labels = undefined,
+    };
+}
+
+pub const DeinitOpts = struct {
+    free_result:bool = false,
+};
+
+pub fn deinit(self:*Tokenizer, opts:DeinitOpts) void {
+    self.mem.deinit(self.alloc);
+
+    if (opts.free_result)
+        for (self.res.items) |*tok|
+            tok.free(self.alloc);
+
+    self.res.deinit(self.alloc);
+
+    var p_itr = self.ptrs.iterator();
+    while (p_itr.next()) |p| self.alloc.free(p.key_ptr.*);
+    self.ptrs.deinit();
+
+    var l_itr = self.labels.iterator();
+    while (l_itr.next()) |p| self.alloc.free(p.key_ptr.*);
+    self.labels.deinit();
+}
+
+pub const SeekError = error {
+    ReadFailed,
+    NotInitialized,
+};
+
+pub fn next(self:*Tokenizer) SeekError!?u8 {
+    if (self.reader == null) return error.NotInitialized;
+    return
+        if (self.reader.?.takeByte()) |byte|
+            try self.seek_hook(byte, .advance)
+        else |err| switch (err) {
+            error.EndOfStream => null,
+            error.ReadFailed => error.ReadFailed,
+        };
+}
+
+pub fn peek(self:*Tokenizer) SeekError!u8 {
+    if (self.reader == null) return error.NotInitialized;
+    return
+        if (self.reader.?.peekByte()) |byte|
+            try self.seek_hook(byte, .stay) orelse 0
+        else |err| switch (err) {
+            error.EndOfStream => 0,
+            error.ReadFailed => error.ReadFailed,
+        };
+}
+
+//gets the nth byte from cur pos
+pub fn peekN(self:*Tokenizer, n:usize) SeekError!u8 {
+    if (self.reader == null) return error.NotInitialized;
+    return
+        if (self.reader.?.peek(n)) |c|
+            try self.seek_hook(c[c.len-1], .stay) orelse 0
+        else |err| switch (err) {
+            error.EndOfStream => 0,
+            error.ReadFailed => error.ReadFailed,
+        };
+}
+
+pub fn toss(self:*Tokenizer, n:usize) error{NotInitialized}!void {
+    if (self.reader == null) return error.NotInitialized;
+    self.reader.?.toss(n);
+}
+
+pub fn peek_word(self:*Tokenizer) ![]u8 {
+    var res:[]u8 = try self.alloc.alloc(u8, 0);
+    while (std.ascii.isWhitespace(try self.peek())) try self.toss(1);
+    var o:usize = 1;
+    while (true) {
+        defer o += 1;
+        const b = try self.peekN(o);
+        if (b == 0) break;
+        if (std.ascii.isWhitespace(b) or b == ';') return res;
+        var new = try self.alloc.alloc(u8, res.len+1);
+        for (0..res.len) |i| new[i] = res[i];
+        new[new.len-1] = b;
+        self.alloc.free(res);
+        res = new;
+    }
+    return res;
+}
+
+pub fn take_word_if_eql(self:*Tokenizer, target:[]const u8) !?[]u8 {
+    const word = try self.peek_word();
+    if (std.mem.eql(u8, target, word)) {
+        self.toss(word.len);
+        return word;
+    }
+    self.alloc.free(word);
+    return null;
+}
+
+pub fn take_word(self:*Tokenizer) ![]u8 {
+    const w = try self.peek_word();
+    try self.toss(w.len);
+    return w;
+}
+
+pub fn toss_word(self:*Tokenizer) !void {
+    self.alloc.free(try self.take_word());
+}
+
+pub fn toss_word_if_eql(self:*Tokenizer, target:[]const u8) !bool {
+    if (try self.take_word_if_eql(target)) |match| {
+        self.alloc.free(match);
+        return true;
+    }
+    return false;
+}
+
+pub fn seek_hook(self:*Tokenizer, b:u8, action:enum{advance, stay}) !?u8 {
+    if (b == ';') while (true) {
+        _ = self.reader.?.discardDelimiterInclusive('\n') catch |e| return switch (e) {
+            error.EndOfStream => null,
+            error.ReadFailed => error.ReadFailed
+        };
+        return if (action == .stay) try self.peek() else try self.next();
+    };
+    return b;
+}
+
+pub fn delim(
+    self:*Tokenizer,
+    b:u8,
+    comptime what:enum{ toss, take, peek }
+) !if (what == .toss) void else []u8 {
+    return switch (what) {
+        .toss => while (true) {
+            const c = try self.peek();
+            if (c == b or c == 0) break;
+        },
+        .take => try self.reader.?.takeDelimiter(b),
+        .peek => try self.reader.?.peekDelimiterExclusive(b),
+    };
+}
+
+pub const TokenizerError = error {
+    UnknownType,
+    TypeMissmatch,
+    InvalidToken,
+    UnknownIdent,
+} || SeekError
+  || std.fmt.ParseIntError
+  || std.fmt.ParseFloatError
+  || std.mem.Allocator.Error;
+
+pub fn do(self:*Tokenizer, reader:*std.Io.Reader) TokenizerError![]Token {
+    self.reader = reader;
+    self.ptrs = .init(self.alloc);
+    self.labels = .init(self.alloc);
+    var string:?u8 = null;
+
+    while (try self.next()) |b| {
+        if (b == '\n') self.line_no += 1;
+
+        if (string) |s| {
+            if (s == b) string = null;
+            try self.mem.append(self.alloc, b);
+            continue;
+        }
+
+        if (std.ascii.isWhitespace(b))
+            if (self.mem.items.len > 0) {
+                const new = try self.determine() orelse continue;
+                try self.res.append(self.alloc, new);
+                continue;
+            } else
+                continue;
+
+        switch (b) {
+            '"' => string = '"',
+            ';' => try self.delim('\n', .toss),
+            else => {},
+        }
+        try self.mem.append(self.alloc, b);
+    }
+
+    blk: {
+        const new = try self.determine() orelse break :blk;
+        try self.res.append(self.alloc, new);
+    }
+
+    return self.res.toOwnedSlice(self.alloc);
+}
+
+pub fn determine(self:*Tokenizer) !?Token {
+    const thing = self.mem.items;
+    defer self.mem.clearAndFree(self.alloc);
+
+    if (thing.len == 0) return null;
+
+    if (std.meta.stringToEnum(OpCode, thing)) |opcode|
+        return .{ .line = self.line_no, .value = .{ .opcode = opcode } };
+
+    if (std.meta.stringToEnum(std.meta.Tag(Value), thing)) |t| {
+        switch (t) {
+            .ptr => {
+                //const size_str = try self.take_word();
+                //defer self.alloc.free(size_str);
+                //const size = try parseInt(usize, size_str, 10);
+
+                const name = try self.take_word();
+                errdefer self.alloc.free(name);
+
+                self.ident_counter += 1;
+                try self.ptrs.put(name, self.ident_counter);
+                return .{
+                    .line = self.line_no,
+                    .value = .{ .ptr = .{ .def = .{ .val = self.ident_counter } } }
+                };
+            },
+            .pos => {
+                self.ident_counter += 1;
+                const pos = try self.labels.getOrPutValue(
+                    try self.take_word(), self.ident_counter
+                );
+                return .{
+                    .line = self.line_no,
+                    .value = .{ .ptr = .{ .def = .{ .pos = pos.value_ptr.*, } } }
+                };
+            },
+            .void => {
+                return .{ .line = self.line_no, .value = .{ .literal = .void } };
+            },
+            else => {
+                self.type = t;
+                return null;
+            },
+        }
+    }
+
+    if (thing[0] == '@') {
+        const res:Token = .{
+            .line = self.line_no,
+            .value = .{ .ptr = .{
+                .use = @intCast(self.labels.get(thing[1..]) orelse blk: {
+                    const word = try self.peek_word();
+                    defer self.alloc.free(word);
+                    const name = try self.alloc.dupe(u8, thing);
+                    self.mem.clearAndFree(self.alloc);
+                    try self.mem.appendSlice(self.alloc, name[1..]);
+                    self.type = .pos;
+                    const ptr = try self.determine() orelse unreachable;
+                    break :blk ptr.value.ptr.def.pos;
+                }),
+            } }
+        };
+        return res;
+    }
+
+    if (thing[0] == '$')
+        return .{
+            .line = self.line_no,
+            .value = .{ .ptr = .{
+                .use = (self.ptrs.get(thing[1..]) orelse return error.UnknownIdent)
+            } },
+        };
+
+    if (thing[0] == '.')
+        return .{
+            .line = self.line_no,
+            .value = .{ .literal = .{ .name_literal = try self.alloc.dupe(u8, thing[1..]) } }
+        };
+
+
+    if (hlp.is_num(thing)) {
+        return .{
+            .line = self.line_no,
+            .value = .{
+                .literal = switch (self.type orelse .byte) {
+                    .int  => .{ .int  = try parseInt(i256, thing, 10) },
+                    .uint => .{ .uint = try parseInt(u256, thing, 10) },
+                    .byte => .{ .byte = try parseInt(u8, thing, 10) },
+
+                    .s8  => .{ .s8  = try parseInt(i8, thing, 10) },
+                    .s16 => .{ .s16 = try parseInt(i16, thing, 10) },
+                    .s32 => .{ .s32 = try parseInt(i32, thing, 10) },
+                    .s64 => .{ .s64 = try parseInt(i64, thing, 10) },
+
+                    // NOTE: u8 is covered by 'byte'
+                    .u16 => .{ .u16 = try parseInt(u16, thing, 10) },
+                    .u32 => .{ .u32 = try parseInt(u32, thing, 10) },
+                    .u64 => .{ .u64 = try parseInt(u64, thing, 10) },
+
+                    .f32 => .{ .f32 = try parseFloat(f32, thing) },
+                    .f64 => .{ .f64 = try parseFloat(f32,  thing) },
+
+                    else => return error.TypeMissmatch,
+                }
+            }
+        };
+    }
+
+    //if (thing.len > 1) if (thing[0] == '"' and thing[thing.len-1] == '"')
+    //    return .{
+    //        .line = self.line_no,
+    //        .value = .{ .literal = .{
+    //            .string = try self.alloc.dupe(u8, thing[1..thing.len-1])
+    //        } }
+    //    };
+
+    std.debug.print("(line: {d}) |{s}|\n", .{self.line_no, thing});
+    return error.InvalidToken;
+}
