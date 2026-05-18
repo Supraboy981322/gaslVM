@@ -5,10 +5,14 @@ a usage example is included for most instructions
 
 ## generic
 - `return`
+
   returns value popped from the stack.
+
 >[!NOTE]
 >Every program should end with a value and a `return` (it is undefined behavior otherwise).
+
   TODO: don't end VM, return value to 'pos' (or something)
+
   ```asm
   push void
     return ;.{ .void = void }
@@ -16,7 +20,9 @@ a usage example is included for most instructions
 
 
 - `no_op`
+
   does nothing; moves on to next instruction
+
   ```asm
   no_op
   push void
@@ -24,7 +30,9 @@ a usage example is included for most instructions
   ```
 
 - `push`
+
   push a value onto the stack
+
   ```asm
   push int 1
     discard
@@ -33,7 +41,9 @@ a usage example is included for most instructions
   ```
 
 - `discard`
+
   pops from stack, discarding value
+
   ```asm
   ptr foo
   push $foo
@@ -43,9 +53,13 @@ a usage example is included for most instructions
   ```
 
 - `syscall`
+
   makes a syscall to either host's OS or a hook to code outside the VM (ie: a Zig function)
-  (assuming that `$string` is pointer to a string and `$idx` is the length of the string)
+
   TODO: said hooks
+
+  (assuming that `$string` is pointer to a string and `$idx` is the length of the string)
+
   ```asm
   push $idx get  ;string length 
   push $string getH ;get host pointer
@@ -57,7 +71,9 @@ a usage example is included for most instructions
   ```
 
 - `jmp`
+
   jump to a 'pos' in code
+
   ```asm
   ;infinite loop (never returns a value)
   pos foo
@@ -66,10 +82,13 @@ a usage example is included for most instructions
   ```
 
 - `jmpif`
+
   conditional jump; only jumps if popped value is 'true'
+
 >[!NOTE]
 >this pops the 'pos' first, then the boolean
-  ```
+
+  ```asm
   ;infinite loop (never returns a value)
   pos foo
   push int 10
@@ -86,7 +105,9 @@ a usage example is included for most instructions
 ## arithmetic instructions
 
 - `negate`
+
   pops a value and negates it
+
   ```asm
   push int 1
     negate
@@ -94,7 +115,9 @@ a usage example is included for most instructions
   ```
 
 - `add`
+
   pops two values and adds them
+
   ```asm
   push uint 1
   push uint 2
@@ -103,7 +126,9 @@ a usage example is included for most instructions
   ```
 
 - `sub`
+
   pops two values and subtracts them
+
   ```asm
   push f32 1.1
   push f32 2
@@ -112,7 +137,9 @@ a usage example is included for most instructions
   ```
 
 - `mult`
+
   pops two values and multiplies them
+
   ```asm
   push f64 3.3
   push f64 0.1
@@ -121,7 +148,9 @@ a usage example is included for most instructions
   ```
 
 - `div`
+
   pops two values and divides them
+
   ```asm
   push f32 3.3
   push f32 1.1
@@ -140,13 +169,15 @@ These all just push the value to the stack
 
 ## logical instructions
 
->[!WARN]
+>[!WARNING]
 >all of these have very little type safety,
 >  they pop values and immediately access the expected field types
 >    (as in without checking the type)
 
 - `not`
+
   pops a boolean value and does logical negate
+
   ```asm
   true
   false
@@ -156,7 +187,9 @@ These all just push the value to the stack
   ```
 
 - `eql`
+
   pops two values and checks if they're equal
+
   ```asm
   push byte 10
   push int 11
@@ -166,7 +199,9 @@ These all just push the value to the stack
   ```
 
 - `greater`
+
   pops two values and checks if the second popped value is greater than the first
+
   ```asm
   push int 2
   push int 1
@@ -175,7 +210,9 @@ These all just push the value to the stack
   ```
 
 - `less`
+
   pops two values and checks if hte second popped value is less than the first
+
   ```asm
   push int 1
   push int 3
@@ -193,10 +230,13 @@ These all just push the value to the stack
 >    as leaked (all of these examples except `free` leak memory)
 
 - `alloc`
+
   allocates space for value in memory, pushes pointer to stack
+
 >[!NOTE] this does not set the value of the pointer;
 >  it simply pushes the new pointer to the stack, you
 >    must save the pointer manually
+
   ```asm
   ptr foo
   push $foo
@@ -210,9 +250,12 @@ These all just push the value to the stack
   ```
 
 - `free`
+
   marks a section of memory as not taken and sets the value of the pointer to `null`
+
 >[!NOTE]
 >this does not actually free host's memory
+
   ```asm
   ptr foo
   push $foo
@@ -228,9 +271,12 @@ These all just push the value to the stack
   ```
 
 - `save`
+
   saves a value from the stack into a pointer in memory
+
 >[!NOTE]
 >'save' does not push back onto the stack
+
   ```asm
   ptr foo      ;create pointer
   push $foo    ;push pointer to stack
@@ -244,10 +290,13 @@ These all just push the value to the stack
   ```
 
 - `overwrite`
+
   changes value in memory from existing pointer
+
 >[!NOTE]
 >calling `get` is illegal, this instruction changes the value in-place
 >  (meaning, do not push a pointer, call `get`, then try to call `overwrite`)
+
   ```asm
   ptr foo
   push $foo
@@ -264,10 +313,13 @@ These all just push the value to the stack
   ```
 
 - `get`
+
   pushes a value from an existing pointer in memory to the stack
+
 >[!NOTE]
 >this pushes the VM's pointer, not the actual host's pointer
 >  (see `getH` for the host system's pointer)
+
   ```asm
   ptr foo
   push $foo
@@ -290,9 +342,11 @@ These all just push the value to the stack
 - `getH`
   mostly used the same as 'get' but pushes host pointer; at the moment, this is 
   just for things like syscalls
->[!WARN]
+
+>[!WARNING]
 >this just creates a `u64` value for the literal number value of the pointer
 >  therefore things like `ptr_add` and `ptr_sub` are illegal here
+
   ```
   ptr foo      ;create pointer
   push $foo    ;push pointer to stack
@@ -306,7 +360,9 @@ These all just push the value to the stack
   ```
 
 - `ptr_add`
+
   pointer arithmetic addition
+
   ```asm
   ptr foo
 
@@ -325,7 +381,9 @@ These all just push the value to the stack
   ```
 
 - `ptr_sub`
+
   pointer arithmetic subtraction
+
   ```asm
   ptr foo
 
@@ -356,14 +414,16 @@ These all just push the value to the stack
 
 ## instructions for Zig debug builds
 
->[!WARN]
+>[!WARNING]
 >the following functions are only legal in Zig debug builds
 >  use of them outside of a Zig debug build will trigger an
 >    `error.IllegalInstruction` at runtime
 
 - `print`
   prints a value of the union type `Value` using Zig's std.Io.Writer.print
+
   format string `{any}`, followed by a newline
+
   ```asm
   push byte 100
     print  ;.{ .byte = 100 }
