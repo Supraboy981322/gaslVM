@@ -19,7 +19,7 @@
       let
         repo_root = builtins.toString ./.;
 
-        zigVersion = "0.15.2";
+        zigVersion = "0.16.0";
 
         # selected Zig package
         zig = zig_overlay.packages.${system}.${zigVersion};

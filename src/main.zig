@@ -5,10 +5,8 @@ const Interp = @import("interp.zig");
 const VM = @import("vm.zig");
 const Tokenizer = @import("tokenizer.zig");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const alloc = gpa.allocator();
+pub fn main(init:std.process.Init) !void {
+    const alloc = init.gpa;
 
     // TODO: swap run and build as defaults
     var opts:struct{
@@ -39,8 +37,8 @@ pub fn main() !void {
     } = .{};
     defer opts.deinit(alloc);
 
-    var filename:?[:0]const u8 = null;
-    var args = std.process.args();
+    var filename:?[]const u8 = null;
+    var args = init.minimal.args.iterate();
     defer args.deinit();
     _ = args.skip();
     while (args.next()) |a| {
@@ -69,11 +67,12 @@ pub fn main() !void {
         switch (match) {
             .run => {
                 opts.run = true;
-                filename = args.next() orelse {
+                const filename_R = args.next() orelse {
                     std.debug.print("missing arg value: {s}\n", .{a});
                     std.process.abort();
                     unreachable;
                 };
+                filename = filename_R.ptr[0..filename_R.len];
             },
             .build => @panic("TODO: build to binary"),
         }
@@ -84,15 +83,15 @@ pub fn main() !void {
         std.process.abort();
     }
 
-    var file = std.fs.cwd().openFileZ(filename orelse unreachable, .{}) catch |e| {
+    var file = std.Io.Dir.cwd().openFile(init.io, filename orelse unreachable, .{}) catch |e| {
         std.debug.print("failed to open file: {t}\n", .{e});
         std.process.abort();
         unreachable;
     };
-    defer file.close();
+    defer file.close(init.io);
 
     var buf:[1024]u8 = undefined;
-    var crappy_reader = file.reader(&buf);
+    var crappy_reader = file.reader(init.io, &buf);
     const reader = &crappy_reader.interface;
 
     if (!opts.run) unreachable; // TODO: compile to binary
