@@ -36,6 +36,7 @@ chunk:?*Chunk,
 alloc:std.mem.Allocator,
 
 ip:[*]CodeByte,
+saved_pos:?[*]CodeByte = null,
 
 stack:[options.stack_size]Value,
 stack_top:[*]Value,
@@ -151,9 +152,11 @@ fn run(self:*VM) InterpResult {
             //generic OpCodes
             .no_op => {},
             .discard => _ = self.pop(),
-            .@"return" => {
-                return .okay(self.pop());
+            inline .@"return", .stop => |which| {
+                if ((comptime which == .stop) or self.saved_pos == null) return .okay(self.pop());
+                self.ip = self.saved_pos.?;
             },
+            .save_pos => self.saved_pos = self.ip,
             .push => {
                 const v:*Value = self.read_const() catch |e| return .runtime(e, "push");
                 self.push(v.*);
@@ -308,7 +311,6 @@ fn run(self:*VM) InterpResult {
                 }
                 self.push(.{ .ptr = ptr });
             },
-
 
 
             else => return .runtime(

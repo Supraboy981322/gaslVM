@@ -10,6 +10,9 @@ pub const OpCode = enum(u8) {
     //returns value popped from the stack
     //  TODO: don't end VM, return value to 'pos' (or something)
     @"return",
+    //stops VM and returns value at top of stack to host
+    stop,
+    @"save_pos",
 
     no_op, //does nothing; moves on to next instruction
 
