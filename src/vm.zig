@@ -4,6 +4,7 @@ const memory = @import("memory.zig");
 const value = @import("value.zig");
 const common = @import("common.zig");
 const options = @import("options");
+const Tokenizer = @import("tokenizer.zig");
 const Chunk = @import("chunk.zig").Chunk;
 const OpCode = @import("chunk.zig").OpCode;
 const Value = value.Value;
@@ -65,6 +66,7 @@ pub fn deinit(self:*VM) void {
 
 pub const InterpResult = union(enum) {
     ok:Value,
+    tokenize_err:Error(Tokenizer.TokenizerError, Tokenizer.TokenizeResult.ErrInfo),
     compile_err:Error(anyerror, []u8),
     runtime_err:Error(RuntimeError, []u8),
 
@@ -75,6 +77,13 @@ pub const InterpResult = union(enum) {
     pub fn runtime(e:RuntimeError, info:?[]const u8) InterpResult {
         return .{ .runtime_err = .{
             .info = @constCast(info) orelse @constCast(""), // TODO: error info
+            .err = e,
+        } };
+    }
+
+    pub fn compile(e:anyerror, info:?[]const u8) InterpResult {
+        return .{ .compile_err = .{
+            .info = @constCast(info) orelse @constCast(""),
             .err = e,
         } };
     }

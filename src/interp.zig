@@ -40,7 +40,11 @@ pub fn do(self:*Interp) !VM.InterpResult {
     var tokenizer:Tokenizer = .init(self.alloc);
     defer tokenizer.deinit(.{ .free_result = true });
 
-    const tokenized = try tokenizer.do(self.reader);
+    const tokenized_result = try tokenizer.do(self.reader);
+    const tokenized = switch (tokenized_result) {
+        .err => |e| return .{  .tokenize_err = .mk(e.err, e.info orelse unreachable) },
+        .ok => |toks| toks,
+    };
     defer {
         for (tokenized) |tok| if (tok.value == .literal) switch (tok.value.literal) {
             .name_literal => |name| self.alloc.free(name),
@@ -66,19 +70,6 @@ pub fn do(self:*Interp) !VM.InterpResult {
     var res = vm.interpret(&compiled);
     switch (res) {
         .ok => |*ok| return .okay(try ok.dupe(self.alloc)),
-        .runtime_err => |e| return .{
-            .runtime_err = .{
-                .err = e.err,
-                .info = blk: {
-                    const line_no = vm.get_line_no();
-                    break :blk try std.fmt.allocPrint(
-                        self.alloc, "line:{?d} |{s}|", .{
-                            line_no, if (e.info.len > 0) e.info else @tagName(vm.ip[0])
-                        }
-                    );
-                },
-            },
-        },
         .compile_err => |e| return .{
             .compile_err = .{
                 .err = e.err,
@@ -93,6 +84,7 @@ pub fn do(self:*Interp) !VM.InterpResult {
                 },
             },
         },
+        else => unreachable,
     }
     unreachable;
 }
