@@ -347,7 +347,7 @@ These all just push the value to the stack
 >this just creates a `u64` value for the literal number value of the pointer
 >  therefore things like `ptr_add` and `ptr_sub` are illegal here
 
-  ```
+  ```asm
   ptr foo      ;create pointer
   push $foo    ;push pointer to stack
   push byte 1  ;push length to stack
