@@ -219,6 +219,7 @@ pub fn determine(self:*Tokenizer) !?Token {
             .pos => {
                 const name = try self.take_word();
                 if (self.labels.contains(name)) {
+                    defer self.alloc.free(name);
                     return .{
                         .line = self.line_no,
                         .value = .{ .ptr = .{ .def = .{ .pos = self.labels.get(name).?, } } }
