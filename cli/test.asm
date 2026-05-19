@@ -39,7 +39,7 @@ pos build_string
   hold ;length (internally remaining length)
   hold ;result pointer
 
- push 10 ;'a'
+  push 10 ;'\n'
   push 1 take_off ;length
     push 1
     sub
@@ -69,11 +69,11 @@ pos build_string
     push 1
       hold_off
 
-  push @build_string_loop
   push 1 take_off ;length
   push 0
     eql
     not
+  push @build_string_loop
     jmpif
 
 push void
