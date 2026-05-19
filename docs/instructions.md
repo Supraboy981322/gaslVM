@@ -64,7 +64,7 @@ a usage example is included for most instructions
   push $idx get  ;string length 
   push $string getH ;get host pointer
   push 1         ;stdout
-  push .write    ;which syscall
+  push SysCall#write    ;which syscall
   push byte 3    ;number of arguments
     syscall
     return ;.{ .u64 = 10 } (the return value varies)

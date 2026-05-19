@@ -215,7 +215,7 @@ pub const OpCode = enum(u8) {
     //      push $idx get  ;string length 
     //      push $string getH ;get host pointer
     //      push 1         ;stdout
-    //      push .write
+    //      push SysCall#.write
     //      push byte 3
     //      syscall
     syscall, 
