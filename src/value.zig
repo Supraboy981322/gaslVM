@@ -40,7 +40,7 @@ pub const Value = union(enum) {
     ptr:Ptr,
 
     name_literal:[]u8, // NOTE: prefixed by a '.' (dot)
-    name:u16,
+    word:u16,
 
     pub fn cast_Z(self:Value, comptime T:type) !T {
         return switch (self) {
@@ -129,7 +129,7 @@ pub const Value = union(enum) {
             .pos  => @panic("TODO: Value.(ptr|pos).dupe(...)"),
 
             .name_literal => |name| .{ .name_literal = try alloc.dupe(u8, name) },
-            .name => |name| .{ .name = name },
+            .word => |name| .{ .word = name },
         };
     }
 
