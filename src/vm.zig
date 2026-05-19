@@ -200,6 +200,7 @@ fn run(self:*VM) InterpResult {
                 if (options.use_debug_trace)
                     std.debug.print("\x1b[33mCONSTANT:\x1b[0m {any}\n", .{v.*});
             },
+            .dupe => self.push((self.stack_top - 1)[0]),
             .hold => self.held.push(self.pop()),
             .hold_off => {
                 const pos = self.pop().cast_Z(usize) catch |e| return .runtime(e, @tagName(code));

@@ -61,6 +61,14 @@ pub const OpCode = enum(u8) {
     //        return ;.{ .byte = 3 }
     hold_off,
 
+    //same as popping a value from stack and pushing it twice
+    //  usage
+    //      push byte 1
+    //        dupe
+    //        discard
+    //      return ;.{ .byte = 1 }
+    dupe,
+
     //behaves identically to 'save_pos' immediately followed by 'jmp'
     //  usage:
     //      push @foo
