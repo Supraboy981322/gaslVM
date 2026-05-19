@@ -349,7 +349,7 @@ pub fn determine(self:*Tokenizer) !?Token {
         for (collection) |w| if (std.mem.eql(u8, w.name, word_set[1])) {
             return .{
                 .line = self.line_no,
-                .value = .{ .literal = .{ .name = w.value } }
+                .value = .{ .literal = .{ .word = w.value } }
             };
         };
     }
