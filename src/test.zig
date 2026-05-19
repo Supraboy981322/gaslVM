@@ -151,12 +151,12 @@ test "loop" {
             \\    add
             \\  push $num
             \\    overwrite
-            \\push @loop
             \\push $num
             \\  get
             \\push byte 10
             \\  eql
             \\  not
+            \\push @loop
             \\  jmpif
             \\push $num
             \\  get

@@ -233,13 +233,13 @@ fn run(self:*VM) InterpResult {
                 self.saved_pos = null;
             },
             inline .jmp, .jmpif, .jmp_sav => |which| {
+                const pos = self.pop().pos.pos;
                 switch (comptime which) {
                     .jmp => {},
                     .jmpif => if (!self.pop().bool) continue,
                     .jmp_sav => self.saved_pos = self.ip,
                     else => unreachable,
                 }
-                const pos = self.pop().pos.pos;
                 self.ip = self.chunk.?.code.items.ptr + pos;
             },
 
