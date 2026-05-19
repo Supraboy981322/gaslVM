@@ -63,6 +63,21 @@ test "(values) uint" {
     );
 }
 
+test "(data section) macros" {
+    _ = try check(
+        run(
+            \\data 10 foo def end
+            \\push %foo
+            \\  return
+        ),
+        @constCast(&[_]bool{
+            result == .ok,
+            result.ok == .byte,
+            result.ok.byte == 10,
+        })
+    );
+}
+
 test "(opcodes) bool" {
     _ = try check(
         run(
