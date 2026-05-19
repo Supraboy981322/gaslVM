@@ -7,16 +7,32 @@ pub const CodeByte = common.CodeByte;
 const Value = value.Value;
 
 pub const OpCode = enum(u8) {
-    //returns value popped from the stack
-    //  TODO: don't end VM, return value to 'pos' (or something)
+    //pops value from stack then jumps to last 'jmp_sav' position
+    //  or ends VM
+    //    (behaves identically to 'stop' if no 'pos' is saved)
     @"return",
+
     //stops VM and returns value at top of stack to host
     stop,
+
+    //saves the current position in the bytecode
+    //  (for 'return' to jump back to)
+    // NOTE: this (with 'return') could be used for control flow
+    //   without creating labeled positions
     @"save_pos",
+
+    //pops value from stack and pushes it to a secondary (smaller) stack
     hold,
+    //pops value from secondary stack and pushes it to main stack
     take,
+
+    //behaves identically to 'save_pos' immediately followed by 'jmp'
     jmp_sav,
+
+    //dupes value from secondary stack into main stack
     take_copy,
+    //'take' but pops a number from main stack as an offset from 
+    //  top of secondary stack
     take_off,
 
     no_op, //does nothing; moves on to next instruction
