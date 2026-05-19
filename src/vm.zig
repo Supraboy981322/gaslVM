@@ -197,7 +197,7 @@ fn run(self:*VM) InterpResult {
                     const offset = self.pop().cast_Z(usize) catch |e| {
                         return .runtime(e, @tagName(which));
                     };
-                    self.push((self.held_top - offset)[0]);
+                    self.push((self.held_top - offset-1)[0]);
                 } else
                     self.push(self.held_top[0]);
             },
