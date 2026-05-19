@@ -1,6 +1,7 @@
 const std = @import("std");
 const Token = @import("token.zig");
 const chunk = @import("chunk.zig");
+const common = @import("common.zig");
 const hlp = @import("common").helpers;
 
 const parseInt = std.fmt.parseInt;
@@ -8,6 +9,7 @@ const parseFloat = std.fmt.parseFloat;
 
 const OpCode = chunk.OpCode;
 const Value = @import("value.zig").Value;
+const Keyword = common.Keyword;
 
 const Tokenizer = @This();
 
@@ -30,6 +32,7 @@ reader:?*std.Io.Reader = null,
 
 ptrs:std.StringHashMap(u16),
 labels:std.StringHashMap(usize),
+words:std.StringHashMap([]common.Data.TokenWord),
 ident_counter:u16 = 0,
 
 pub fn init(alloc:std.mem.Allocator) Tokenizer {
@@ -37,6 +40,7 @@ pub fn init(alloc:std.mem.Allocator) Tokenizer {
         .alloc = alloc,
         .ptrs = undefined,
         .labels = undefined,
+        .words = undefined,
         .pos = .{ .arena = .init(alloc) },
     };
 }
@@ -61,6 +65,16 @@ pub fn deinit(self:*Tokenizer, opts:DeinitOpts) void {
     var l_itr = self.labels.iterator();
     while (l_itr.next()) |p| self.alloc.free(p.key_ptr.*);
     self.labels.deinit();
+
+    var w_itr = self.words.iterator();
+    while (w_itr.next()) |s| {
+        for (s.value_ptr.*) |w| {
+            self.alloc.free(w.name);
+        }
+        self.alloc.free(s.value_ptr.*);
+        self.alloc.free(s.key_ptr.*);
+    }
+    self.words.deinit();
 }
 
 pub const TokenizerError = error {
