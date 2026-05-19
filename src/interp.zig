@@ -46,15 +46,15 @@ pub fn do(self:*Interp) !VM.InterpResult {
         .ok => |toks| toks,
     };
     defer {
-        for (tokenized) |tok| if (tok.value == .literal) switch (tok.value.literal) {
+        for (tokenized.tokens) |tok| if (tok.value == .literal) switch (tok.value.literal) {
             .name_literal => |name| self.alloc.free(name),
             else => {},
         };
-        self.alloc.free(tokenized);
+        self.alloc.free(tokenized.tokens);
     }
     if (self.opts.mode == .debug) {
         std.debug.print("\n\n==== tokenized ====\n", .{});
-        for (tokenized) |token| @import("debug.zig").print_token(token);
+        for (tokenized.tokens) |token| @import("debug.zig").print_token(token);
     }
 
     var compiled = try compiler.do(tokenized, self.alloc, self.opts.mode);

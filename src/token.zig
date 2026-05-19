@@ -22,7 +22,10 @@ pub const Type = union(enum) {
                 };
             }
         },
-        use:u16,
+        use:struct{
+            name:?[]u8 = null,
+            val:u16,
+        }
     },
 };
 

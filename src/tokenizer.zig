@@ -74,7 +74,7 @@ pub const TokenizerError = error {
   || std.mem.Allocator.Error;
 
 pub const TokenizeResult = union(enum) {
-    ok:[]Token,
+    ok:Tokenized,
     err:struct{
         info:?ErrInfo, // TODO: make this not optional
         err:TokenizerError,
@@ -114,12 +114,39 @@ pub const TokenizeResult = union(enum) {
         },
     };
 
+    pub const Tokenized = struct {
+        positions:[]usize,
+        tokens:[]Token,
+    };
+
     pub fn mk_err(e:TokenizerError, info:?ErrInfo) TokenizeResult {
         return .{ .err = .mk(e, info) };
     }
 
-    pub fn okay(res:[]Token) TokenizeResult {
-        return .{ .ok = res };
+    pub fn okay(self:*Tokenizer) !TokenizeResult {
+        const tokens = try self.res.toOwnedSlice(self.alloc);
+        return .{ .ok = .{
+            .tokens = tokens,
+            .positions = blk: {
+                var res:std.ArrayList(usize) = .empty;
+                defer res.deinit(self.alloc);
+                var itr = self.labels.iterator();
+                // TODO: very efficient refactor this
+                while (itr.next()) |pos| {
+                    try res.append(self.alloc, pos.value_ptr.*);
+                    for (tokens) |*tok| if (tok.value == .ptr) if (tok.value.ptr == .use) {
+                        if (tok.value.ptr.use.name) |name| {
+                            if (std.mem.eql(u8, name, pos.key_ptr.*))
+                                tok.value.ptr.use.val = @intCast(pos.value_ptr.*);
+                            self.alloc.free(name);
+                            tok.value.ptr.use.name = null;
+                        }
+                    };
+                }
+                break :blk try 
+                res.toOwnedSlice(self.alloc);
+            },
+        }};
     }
 };
 
@@ -161,7 +188,7 @@ pub fn do(self:*Tokenizer, reader:*std.Io.Reader) !TokenizeResult {
         try self.res.append(self.alloc, new);
     }
 
-    return .okay(try self.res.toOwnedSlice(self.alloc));
+    return try .okay(self);
 }
 
 pub fn determine(self:*Tokenizer) !?Token {
@@ -191,13 +218,19 @@ pub fn determine(self:*Tokenizer) !?Token {
                 };
             },
             .pos => {
+                const name = try self.take_word();
+                if (self.labels.contains(name)) {
+                    std.debug.print("|{s}|\n",.{name});
+                    return .{
+                        .line = self.line_no,
+                        .value = .{ .ptr = .{ .def = .{ .pos = self.labels.get(name).?, } } }
+                    };
+                }
                 self.ident_counter += 1;
-                const pos = try self.labels.getOrPutValue(
-                    try self.take_word(), self.ident_counter
-                );
+                try self.labels.putNoClobber(name, self.ident_counter);
                 return .{
                     .line = self.line_no,
-                    .value = .{ .ptr = .{ .def = .{ .pos = pos.value_ptr.*, } } }
+                    .value = .{ .ptr = .{ .def = .{ .pos = self.ident_counter, } } }
                 };
             },
             .void => {
@@ -214,16 +247,17 @@ pub fn determine(self:*Tokenizer) !?Token {
         const res:Token = .{
             .line = self.line_no,
             .value = .{ .ptr = .{
-                .use = @intCast(self.labels.get(thing[1..]) orelse blk: {
-                    const word = try self.peek_word();
-                    defer self.alloc.free(word);
-                    const name = try self.alloc.dupe(u8, thing);
-                    self.mem.clearAndFree(self.alloc);
-                    try self.mem.appendSlice(self.alloc, name[1..]);
-                    self.type = .pos;
-                    const ptr = try self.determine() orelse unreachable;
-                    break :blk ptr.value.ptr.def.pos;
-                }),
+                .use = .{
+                    .name = try self.alloc.dupe(u8, thing[1..]),
+                    .val = @intCast(self.labels.get(thing[1..]) orelse blk: {
+                        self.ident_counter += 1;
+                        const name = try self.alloc.dupe(u8, thing[1..]);
+                        self.mem.clearAndFree(self.alloc);
+                        try self.labels.putNoClobber(name, self.ident_counter);
+                        self.type = .pos;
+                        break :blk self.ident_counter;
+                    }),
+                }
             } }
         };
         return res;
@@ -233,7 +267,7 @@ pub fn determine(self:*Tokenizer) !?Token {
         return .{
             .line = self.line_no,
             .value = .{ .ptr = .{
-                .use = (self.ptrs.get(thing[1..]) orelse return error.UnknownIdent)
+                .use = .{ .val = (self.ptrs.get(thing[1..]) orelse return error.UnknownIdent) }
             } },
         };
 

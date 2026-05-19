@@ -33,7 +33,10 @@ pub const Value = union(enum) {
     bool:bool, // NOTE: there is a dedicated OpCode for this, this is just for the stack
     void,
 
-    pos:usize,
+    pos:union(enum) {
+        ident:u16,
+        pos:usize,
+    },
     ptr:Ptr,
 
     name_literal:[]u8, // NOTE: prefixed by a '.' (dot)
