@@ -294,11 +294,12 @@ fn run(self:*VM) InterpResult {
 
 
             // WARNING: only valid in Zig debug builds
-            .print =>
+            .print => {
                 if (@import("builtin").mode == .Debug)
-                    std.debug.print("{any}\n", .{self.pop()})
+                    std.debug.print("{any}\n", .{(self.stack_top - 1)[0]})
                 else
-                    return .runtime(error.IllegalInstruction, "print"),
+                    return .runtime(error.IllegalInstruction, "print");
+            },
 
 
 
