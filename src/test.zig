@@ -78,6 +78,21 @@ test "(data section) macros" {
     );
 }
 
+test "(data section) word set" {
+    _ = try check(
+        run(
+            \\data ( foo bar baz ) Foo words end
+            \\push Foo#bar
+            \\  return
+        ),
+        @constCast(&[_]bool{
+            result == .ok,
+            result.ok == .word,
+            result.ok.word == 1,
+        })
+    );
+}
+
 test "(opcodes) bool" {
     _ = try check(
         run(
