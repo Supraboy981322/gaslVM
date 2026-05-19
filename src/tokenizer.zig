@@ -344,6 +344,16 @@ pub fn determine(self:*Tokenizer) !?Token {
     //        } }
     //    };
 
+    if (hlp.cut(thing, '#')) |word_set| {
+        const collection = self.words.get(word_set[0]) orelse return error.UnknownIdent;
+        for (collection) |w| if (std.mem.eql(u8, w.name, word_set[1])) {
+            return .{
+                .line = self.line_no,
+                .value = .{ .literal = .{ .name = w.value } }
+            };
+        };
+    }
+
     std.debug.print("(line: {d}) |{s}|\n", .{self.line_no, thing});
     return error.InvalidToken;
 }
