@@ -312,7 +312,7 @@ fn run(self:*VM) InterpResult {
             },
             inline .get, .getH => |which| {
                 const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
-                if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "get");
+                if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, @tagName(which));
                 const val = self.vm_alloc.get(ptr.val.?, 1) catch |e| {
                     return .runtime(e, "get");
                 };
@@ -352,8 +352,8 @@ fn run(self:*VM) InterpResult {
             },
             inline .ptr_add, .ptr_sub => |op| {
                 var ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
-                const other = self.pop().cast_Z(u16) catch |e| {
-                    if (comptime options.use_debug_trace) std.debug.print("other",.{});
+                const pre = self.pop();
+                const other = pre.cast_Z(u16) catch |e| {
                     return .runtime(
                         if (e == error.BadPtr) error.UseOfUninitializedMemory else e,
                         @tagName(op)
