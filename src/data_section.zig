@@ -5,7 +5,8 @@ const Keyword = common.Keyword;
 const TokenWord = common.Data.TokenWord;
 
 pub const DataKeywords = enum {
-    words
+    words,
+    def,
 };
 
 const Parser = @This();
@@ -30,7 +31,9 @@ fn do(self:*Parser) !void {
     defer alloc.free(collection);
 
     var name:?[]u8 = null;
-    var parsing_collection:bool = true;
+    var parsing_collection:bool = false;
+
+    var value:?[]u8 = null;
 
     while (try self.tokenizer.take_word_or_null()) |word| {
         if (std.meta.stringToEnum(Keyword, word)) |keyword| {
@@ -41,18 +44,26 @@ fn do(self:*Parser) !void {
             }
             continue;
         }
-        if (std.meta.stringToEnum(DataKeywords, word)) |keyword| {
-            alloc.free(word);
-            switch (keyword) {
-                .words => {
-                    if (name == null) return error.MissingName;
-                    try self.add_words(collection, name.?);
-                    alloc.free(collection);
-                    collection = try alloc.alloc([]u8, 0);
-                    name = null;
-                },
+        if (name) |_| {
+            if (std.meta.stringToEnum(DataKeywords, word)) |keyword| {
+                alloc.free(word);
+                switch (keyword) {
+                    .words => {
+                        try self.add_words(collection, name.?);
+                        alloc.free(collection);
+                        collection = try alloc.alloc([]u8, 0);
+                        name = null;
+                    },
+                    .def => {
+                        try self.add_def(value.?, name.?);
+                        alloc.free(collection);
+                        collection = try alloc.alloc([]u8, 0);
+                        name = null;
+                    },
+                }
+                continue;
             }
-            continue;
+            return error.InvalidToken;
         }
 
         if (std.mem.eql(u8, word, "(")) {
@@ -75,10 +86,17 @@ fn do(self:*Parser) !void {
             collection = new;
             continue;
         }
+
+        if (value) |_|
+            name = word
+        else if (name == null)
+            value = word
+        else
+            return error.InvalidToken;
     }
 }
 
-fn add_words(self:*Parser, collection:[][]u8, name:[]u8) !void {
+pub fn add_words(self:*Parser, collection:[][]u8, name:[]u8) !void {
     var alloc = &self.tokenizer.alloc;
     try self.tokenizer.words.put(name, blk: {
         var res:[]TokenWord = try alloc.alloc(TokenWord, 0);
@@ -94,4 +112,8 @@ fn add_words(self:*Parser, collection:[][]u8, name:[]u8) !void {
         }
         break :blk res;
     });
+}
+
+pub fn add_def(self:*Parser, value:[]u8, name:[]u8) !void {
+    try self.tokenizer.defs.put(name, value);
 }

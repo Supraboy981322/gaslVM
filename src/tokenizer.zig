@@ -30,17 +30,15 @@ pos:struct{
 
 reader:?*std.Io.Reader = null,
 
-ptrs:std.StringHashMap(u16),
-labels:std.StringHashMap(usize),
-words:std.StringHashMap([]common.Data.TokenWord),
+ptrs:std.StringHashMap(u16) = undefined,
+labels:std.StringHashMap(usize) = undefined,
+words:std.StringHashMap([]common.Data.TokenWord) = undefined,
+defs:std.StringHashMap([]u8) = undefined,
 ident_counter:u16 = 0,
 
 pub fn init(alloc:std.mem.Allocator) Tokenizer {
     return .{
         .alloc = alloc,
-        .ptrs = undefined,
-        .labels = undefined,
-        .words = undefined,
         .pos = .{ .arena = .init(alloc) },
     };
 }
@@ -86,6 +84,7 @@ pub const TokenizerError = error {
     MisplacedKeyword,
     MissingName,
     MisplacedSymbol,
+    UnknownDef,
 } || SeekError
   || std.fmt.ParseIntError
   || std.fmt.ParseFloatError
@@ -150,6 +149,14 @@ pub const TokenizeResult = union(enum) {
 
     pub fn okay(self:*Tokenizer) !TokenizeResult {
         const tokens = try self.res.toOwnedSlice(self.alloc);
+        {
+            var itr = self.defs.iterator();
+            while (itr.next()) |def| {
+                self.alloc.free(def.value_ptr.*);
+                self.alloc.free(def.key_ptr.*);
+            }
+            self.defs.deinit();
+        }
         return .{ .ok = .{
             .tokens = tokens,
             .positions = blk: {
@@ -178,6 +185,7 @@ pub fn do(self:*Tokenizer, reader:*std.Io.Reader) !TokenizeResult {
     self.reader = reader;
     self.ptrs = .init(self.alloc);
     try self.init_words();
+    self.defs = .init(self.alloc);
     self.labels = .init(self.alloc);
     var string:?u8 = null;
 
@@ -278,6 +286,15 @@ pub fn determine(self:*Tokenizer) !?Token {
                 return null;
             },
         }
+    }
+
+    if (thing[0] == '%') {
+        if (self.defs.get(thing[1..])) |def| {
+            self.mem.clearAndFree(self.alloc);
+            try self.mem.appendSlice(self.alloc, def);
+            return self.determine();
+        } else
+            return error.UnknownDef;
     }
 
     if (thing[0] == '@') {
