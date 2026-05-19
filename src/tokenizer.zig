@@ -166,6 +166,7 @@ pub const TokenizeResult = union(enum) {
 pub fn do(self:*Tokenizer, reader:*std.Io.Reader) !TokenizeResult {
     self.reader = reader;
     self.ptrs = .init(self.alloc);
+    self.words = .init(self.alloc);
     self.labels = .init(self.alloc);
     var string:?u8 = null;
 
@@ -204,11 +205,23 @@ pub fn do(self:*Tokenizer, reader:*std.Io.Reader) !TokenizeResult {
     return try .okay(self);
 }
 
+pub fn do_data(self:*Tokenizer) !void {
+    try @import("data_section.zig").parse(self);
+}
+
 pub fn determine(self:*Tokenizer) !?Token {
     const thing = self.mem.items;
     defer self.mem.clearAndFree(self.alloc);
 
     if (thing.len == 0) return null;
+
+    if (std.meta.stringToEnum(Keyword, thing)) |keyword| switch (keyword) {
+        .data => {
+            try self.do_data();
+            return null;
+        },
+        .end => return error.MissplacedKeyword,
+    };
 
     if (std.meta.stringToEnum(OpCode, thing)) |opcode|
         return .{ .line = self.line_no, .value = .{ .opcode = opcode } };
@@ -508,4 +521,3 @@ pub fn delim(
         .peek => try self.reader.?.peekDelimiterExclusive(b),
     };
 }
-
