@@ -143,8 +143,7 @@ pub const TokenizeResult = union(enum) {
                         }
                     };
                 }
-                break :blk try 
-                res.toOwnedSlice(self.alloc);
+                break :blk try res.toOwnedSlice(self.alloc);
             },
         }};
     }
@@ -220,7 +219,6 @@ pub fn determine(self:*Tokenizer) !?Token {
             .pos => {
                 const name = try self.take_word();
                 if (self.labels.contains(name)) {
-                    std.debug.print("|{s}|\n",.{name});
                     return .{
                         .line = self.line_no,
                         .value = .{ .ptr = .{ .def = .{ .pos = self.labels.get(name).?, } } }
@@ -452,7 +450,6 @@ pub fn bump_line(self:*Tokenizer) !void {
                 while (true) : (offset += 1) {
                     const b = try self.peekN(offset);
                     if (b == 0) break;
-                    std.debug.print("{d}", .{b});
                     if (b != '\n')
                         try res.writer.writeAll(&[_]u8{b})
                     else

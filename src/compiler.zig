@@ -27,7 +27,6 @@ pub fn do(in:Tokenized, alloc:std.mem.Allocator, mode:common.Mode) !Chunk {
         try res.add_op(.no_op, 0);
 
     for (in.positions) |pos| {
-        std.debug.print("{d}\n", .{pos});
         try ptrs.put(pos, .{ .pos = null });
     }
 
