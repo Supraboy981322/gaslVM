@@ -454,6 +454,20 @@ pub fn take_word(self:*Tokenizer) ![]u8 {
     return w;
 }
 
+pub fn take_word_or_null(self:*Tokenizer) !?[]u8 {
+    var res:[]u8 = try self.alloc.alloc(u8, 0);
+    while (try self.next()) |b| {
+        if (std.ascii.isWhitespace(b) or b == ';') if (res.len > 0) return res else continue;
+        const new = try self.alloc.alloc(u8, res.len+1);
+        for (0..res.len) |i| new[i] = res[i];
+        self.alloc.free(res);
+        new[new.len-1] = b;
+        res = new;
+    }
+    self.alloc.free(res);
+    return null;
+}
+
 pub fn toss_word(self:*Tokenizer) !void {
     self.alloc.free(try self.take_word());
 }
