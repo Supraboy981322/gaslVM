@@ -1,40 +1,15 @@
 ptr str
 push $str
-push byte 10
-  alloc
-push byte 97
-  save
-
-ptr idx
-push $idx
-push byte 1
+push 10
   alloc
 push byte 0
   save
 
-pos create_string
-
-  push 97
-  push $idx
-    get
-  push $str
-    ptr_add
-    overwrite
-
-  push $idx
-    get
-  push 1
-    add
-  push $idx
-    overwrite
-
-push $idx
-  get
+push $str
 push 10
-  eql
-  not
-push @create_string
-  jmpif
+push @build_string
+  jmp_sav
+  discard
 
 ptr return_code
 push $return_code
@@ -43,8 +18,8 @@ push byte 1
 push byte 0
   save
 
-push $idx get  ;string length 
-push $str getH ;get host pointer
+push 10
+push $str getH ;host pointer to string
 push 1         ;stdout
 push .write
 push byte 3
@@ -53,13 +28,39 @@ push $return_code
   overwrite
 
 push $str
-push $idx
-  get
-  free
-
-push $idx
-push 1
+push 10
   free
 
 push $return_code
+  stop
+
+pos build_string
+
+  hold ;length (internally remaining length)
+  hold ;result pointer
+
+  pos build_string_loop
+
+    push 97 ;'a'
+    push 1 take_off ;length
+      push 1
+      sub
+    take_copy ;result pointer
+      ptr_add
+      overwrite
+
+    push 1 take_off
+    push 1
+      sub
+    push 1
+      hold_off
+
+  push @build_string_loop
+  push 1 take_off ;length
+  push 0
+    eql
+    not
+    jmpif
+
+push void
   return
