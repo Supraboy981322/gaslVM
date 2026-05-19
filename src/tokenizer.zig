@@ -464,6 +464,8 @@ pub fn take_word_or_null(self:*Tokenizer) !?[]u8 {
         new[new.len-1] = b;
         res = new;
     }
+
+    if (res.len > 0) return res;
     self.alloc.free(res);
     return null;
 }
