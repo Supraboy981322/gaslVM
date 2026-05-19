@@ -50,3 +50,22 @@ pub const CodeByte = union(enum) {
         return @as([]u8, @ptrCast(n))[0..n.len];
     }
 };
+
+pub const Data = struct {
+    words:std.AutoHashMap(u16, []u16),
+
+    //only used during tokenization
+    pub const TokenWord = struct {
+        name:[]u8,
+        value:u16,
+    };
+
+    pub const empty:Data = .{
+        .words = @constCast(&[_]usize{}),
+    };
+};
+
+pub const Keyword = enum {
+    data,
+    end,
+};
