@@ -10,6 +10,9 @@ pub fn build(b: *std.Build) !void {
 
         const stack_size = b.option(usize, "stack_size", "set the stack size") orelse 256;
         opts.addOption(usize, "stack_size", stack_size);
+
+        const hold_size = b.option(usize, "hold_size", "set the size of hold queue") orelse 100;
+        opts.addOption(usize, "hold_size", hold_size);
     }
     const mod_root = b.option([]const u8, "mod_root", "override module root dir") orelse "src";
     const common = b.createModule(.{
