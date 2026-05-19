@@ -21,7 +21,7 @@ push byte 0
 push 10
 push $str getH ;host pointer to string
 push 1         ;stdout
-push .write
+push SysCall#write
 push byte 3
   syscall
 push $return_code
