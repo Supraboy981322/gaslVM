@@ -386,7 +386,10 @@ pub fn read_const(self:*VM) !*Value {
         else if (next == .long_const)
             @intCast(next.long_const)
         else {
-            if (self.opts.mode == .debug) std.debug.print("ERROR HERE: {any}\n", .{next});
+            if (self.opts.mode == .debug) std.debug.print(
+                "ERROR HERE: {t}\n",
+                .{@as(OpCode, @enumFromInt(next.code))}
+            );
             return error.NotConstant;
         };
     return @constCast(&self.chunk.?.constants.items[idx]);
