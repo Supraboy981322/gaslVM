@@ -210,6 +210,7 @@ fn run(self:*VM) InterpResult {
                 const should_end = (comptime which == .stop) or self.saved_pos == null;
                 if (should_end) return .okay(self.pop());
                 self.ip = self.saved_pos.?;
+                self.saved_pos = null;
             },
             inline .jmp, .jmpif, .jmp_sav => |which| {
                 switch (comptime which) {
