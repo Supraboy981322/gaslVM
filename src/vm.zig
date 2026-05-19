@@ -42,6 +42,9 @@ stack:[options.stack_size]Value,
 stack_top:[*]Value,
 vm_alloc:Alloc = undefined,
 
+held:[options.hold_size]Value,
+held_top:[*]Value,
+
 opts:VMOpts,
 
 pub const VMOpts = packed struct {
@@ -50,6 +53,7 @@ pub const VMOpts = packed struct {
 
 pub fn init(mem:std.mem.Allocator, opts:VMOpts) VM {
     var stack = [_]Value{undefined} ** options.stack_size;
+    var held = [_]Value{undefined} ** options.hold_size;
     return .{
         .chunk = null,
         .alloc = mem,
@@ -57,6 +61,8 @@ pub fn init(mem:std.mem.Allocator, opts:VMOpts) VM {
         .stack = stack,
         .stack_top = (&stack).ptr,
         .opts = opts,
+        .held = held,
+        .held_top = (&held).ptr,
     };
 }
 
@@ -162,6 +168,17 @@ fn run(self:*VM) InterpResult {
                 self.push(v.*);
                 if (options.use_debug_trace)
                     std.debug.print("\x1b[33mCONSTANT:\x1b[0m {any}\n", .{v.*});
+            },
+            .hold => {
+                self.held_top[0] = self.pop();
+                self.held_top += 1;
+            },
+            inline .take_off, .take, .take_copy => |which| {
+                if (comptime which == .take) self.held_top -= 1;
+                if (comptime which == .take_off)
+                    self.push((self.held_top - (self.pop().cast_Z(usize) catch |e| return .runtime(e, @tagName(which))))[0])
+                else
+                    self.push(self.held_top[0]);
             },
             .syscall => {
                 const param_count = self.pop().cast_Z(usize) catch |e| {
