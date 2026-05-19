@@ -135,6 +135,14 @@ pub const TokenizeResult = union(enum) {
     pub const Tokenized = struct {
         positions:[]usize,
         tokens:[]Token,
+        pub fn deinit(self:*Tokenized, tokenizer:*Tokenizer) void {
+            tokenizer.alloc.free(self.positions);
+            for (self.tokens) |tok| if (tok.value == .literal) switch (tok.value.literal) {
+                .name_literal => |name| tokenizer.alloc.free(name),
+                else => {},
+            };
+            tokenizer.alloc.free(self.tokens);
+        }
     };
 
     pub fn mk_err(e:TokenizerError, info:?ErrInfo) TokenizeResult {

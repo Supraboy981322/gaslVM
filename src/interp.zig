@@ -37,22 +37,18 @@ pub fn deinit(self:*Interp) void {
 
 pub fn do(self:*Interp) !VM.InterpResult {
 
+    var is_compiled:bool = false;
+
     var tokenizer:Tokenizer = .init(self.alloc);
-    defer tokenizer.deinit(.{ .free_result = true });
+    errdefer if (!is_compiled) tokenizer.deinit(.{ .free_result = true });
 
     const tokenized_result = try tokenizer.do(self.reader);
-    const tokenized = switch (tokenized_result) {
+    var tokenized = switch (tokenized_result) {
         .err => |e| return .{  .tokenize_err = .mk(e.err, e.info orelse unreachable) },
         .ok => |toks| toks,
     };
-    defer {
-        self.alloc.free(tokenized.positions);
-        for (tokenized.tokens) |tok| if (tok.value == .literal) switch (tok.value.literal) {
-            .name_literal => |name| self.alloc.free(name),
-            else => {},
-        };
-        self.alloc.free(tokenized.tokens);
-    }
+    errdefer if (!is_compiled) tokenized.deinit(&tokenizer);
+
     if (self.opts.mode == .debug) {
         std.debug.print("\n\n==== tokenized ====\n", .{});
         for (tokenized.tokens) |token| @import("debug.zig").print_token(token);
@@ -65,6 +61,9 @@ pub fn do(self:*Interp) !VM.InterpResult {
         @import("debug.zig").print_chunk(compiled);
         std.debug.print("\n\n==== interpreted ====\n", .{});
     }
+    is_compiled = true;
+    tokenized.deinit(&tokenizer);
+    tokenizer.deinit(.{ .free_result = true });
 
     var vm:VM = .init(self.alloc, .{ .mode = self.opts.mode });
     defer vm.deinit();
