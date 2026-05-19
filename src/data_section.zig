@@ -27,6 +27,7 @@ fn do(self:*Parser) !void {
     var alloc = self.tokenizer.alloc;
 
     var collection:[][]u8 = try alloc.alloc([]u8, 0);
+    defer alloc.free(collection);
 
     var name:?[]u8 = null;
     var parsing_collection:bool = true;
@@ -47,6 +48,7 @@ fn do(self:*Parser) !void {
                     if (name == null) return error.MissingName;
                     try self.add_words(collection, name.?);
                     alloc.free(collection);
+                    collection = try alloc.alloc([]u8, 0);
                     name = null;
                 },
             }
