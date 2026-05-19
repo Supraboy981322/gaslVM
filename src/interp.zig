@@ -51,6 +51,7 @@ pub fn do(self:*Interp) !VM.InterpResult {
             else => {},
         };
         self.alloc.free(tokenized.tokens);
+        self.alloc.free(tokenized.positions);
     }
     if (self.opts.mode == .debug) {
         std.debug.print("\n\n==== tokenized ====\n", .{});
