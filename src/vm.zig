@@ -42,8 +42,18 @@ stack:[options.stack_size]Value,
 stack_top:[*]Value,
 vm_alloc:Alloc = undefined,
 
-held:[options.hold_size]Value,
-held_top:[*]Value,
+held:struct{
+    stack:[options.hold_size]Value,
+    top:u16,
+    pub fn pop(self:*@This()) Value {
+        self.top -= 1;
+        return self.stack[self.top];
+    }
+    pub fn push(self:*@This(), v:Value) void {
+        defer self.top += 1;
+        self.stack[self.top] = v;
+    }
+},
 
 opts:VMOpts,
 
@@ -54,6 +64,7 @@ pub const VMOpts = packed struct {
 pub fn init(mem:std.mem.Allocator, opts:VMOpts) VM {
     var stack = [_]Value{undefined} ** options.stack_size;
     var held = [_]Value{undefined} ** options.hold_size;
+    _ = &held;
     return .{
         .chunk = null,
         .alloc = mem,
@@ -61,8 +72,10 @@ pub fn init(mem:std.mem.Allocator, opts:VMOpts) VM {
         .stack = stack,
         .stack_top = (&stack).ptr,
         .opts = opts,
-        .held = held,
-        .held_top = (&held).ptr,
+        .held = .{
+            .stack = held,
+            .top = 0,
+        },
     };
 }
 
@@ -187,19 +200,26 @@ fn run(self:*VM) InterpResult {
                 if (options.use_debug_trace)
                     std.debug.print("\x1b[33mCONSTANT:\x1b[0m {any}\n", .{v.*});
             },
-            .hold => {
-                self.held_top[0] = self.pop();
-                self.held_top += 1;
+            .hold => self.held.push(self.pop()),
+            .hold_off => {
+                const pos = self.pop().cast_Z(usize) catch |e| return .runtime(e, @tagName(code));
+                self.held.stack[self.held.top-pos-1] = self.pop();
             },
-            inline .take_off, .take, .take_copy => |which| {
-                if (comptime which == .take) self.held_top -= 1;
-                if (comptime which == .take_off) {
-                    const offset = self.pop().cast_Z(usize) catch |e| {
-                        return .runtime(e, @tagName(which));
-                    };
-                    self.push((self.held_top - offset-1)[0]);
-                } else
-                    self.push(self.held_top[0]);
+            inline .take, .take_copy => |which| {
+                var thing:Value = undefined;
+                if (comptime which == .take_copy)
+                    thing = self.held.stack[self.held.top-1]
+                else
+                    thing = self.held.pop();
+                self.push(thing);
+            },
+            .take_off => {
+                const foo = self.pop();
+                const offset = foo.cast_Z(usize) catch |e| {
+                    return .runtime(e, @tagName(code));
+                };
+                const bar = self.held.stack[self.held.top-offset-1];
+                self.push(bar);
             },
 
 
