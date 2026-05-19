@@ -46,12 +46,12 @@ pub fn do(self:*Interp) !VM.InterpResult {
         .ok => |toks| toks,
     };
     defer {
+        self.alloc.free(tokenized.positions);
         for (tokenized.tokens) |tok| if (tok.value == .literal) switch (tok.value.literal) {
             .name_literal => |name| self.alloc.free(name),
             else => {},
         };
         self.alloc.free(tokenized.tokens);
-        self.alloc.free(tokenized.positions);
     }
     if (self.opts.mode == .debug) {
         std.debug.print("\n\n==== tokenized ====\n", .{});
