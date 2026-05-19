@@ -13,6 +13,11 @@ pub const OpCode = enum(u8) {
     //stops VM and returns value at top of stack to host
     stop,
     @"save_pos",
+    hold,
+    take,
+    jmp_sav,
+    take_copy,
+    take_off,
 
     no_op, //does nothing; moves on to next instruction
 
