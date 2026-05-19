@@ -170,7 +170,7 @@ pub const TokenizeResult = union(enum) {
 pub fn do(self:*Tokenizer, reader:*std.Io.Reader) !TokenizeResult {
     self.reader = reader;
     self.ptrs = .init(self.alloc);
-    self.words = .init(self.alloc);
+    try self.init_words();
     self.labels = .init(self.alloc);
     var string:?u8 = null;
 
@@ -356,6 +356,21 @@ pub fn determine(self:*Tokenizer) !?Token {
 
     std.debug.print("(line: {d}) |{s}|\n", .{self.line_no, thing});
     return error.InvalidToken;
+}
+
+pub fn init_words(self:*Tokenizer) !void {
+    self.words = .init(self.alloc);
+    try self.words.put(try self.alloc.dupe(u8, "SysCall"), blk: {
+        var res:std.ArrayList(common.Data.TokenWord) = .empty;
+        defer res.deinit(self.alloc);
+        for (std.meta.tags(std.posix.system.SYS)) |syscall| {
+            try res.append(self.alloc, .{
+                .name = try self.alloc.dupe(u8, @as([]u8, @ptrCast(@constCast(@tagName(syscall))))[0..@tagName(syscall).len]),
+                .value = @intCast(@intFromEnum(syscall)),
+            });
+        }
+        break :blk try res.toOwnedSlice(self.alloc);
+    });
 }
 
 pub fn construct_err(self:*Tokenizer, err:TokenizerError) !TokenizeResult.ErrInfo {
