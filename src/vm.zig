@@ -180,11 +180,7 @@ fn run(self:*VM) InterpResult {
                 if (param_count > std.math.maxInt(u3)) {
                     return .runtime(error.InvalidSyscallParam, null);
                 }
-                const name_str = self.pop().name_literal;
-                const syscall_name = std.meta.stringToEnum(
-                    std.posix.system.SYS, name_str
-                ) orelse return .runtime(error.InvalidSyscall, name_str);
-                const ret = self.syscall(syscall_name, @intCast(param_count)) catch |e| {
+                const ret = self.syscall(@enumFromInt(self.pop().word), @intCast(param_count)) catch |e| {
                     return .runtime(e, null);
                 };
                 self.push(ret);

@@ -63,21 +63,6 @@ test "(values) uint" {
     );
 }
 
-test "(values) name_literal" {
-    const alloc = try check(
-        run(
-            \\push .foo
-            \\  return
-        ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .name_literal,
-            std.mem.eql(u8, result.ok.name_literal, "foo"),
-        })
-    );
-    alloc.free(result.ok.name_literal);
-}
-
 test "(opcodes) bool" {
     _ = try check(
         run(

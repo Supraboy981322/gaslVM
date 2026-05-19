@@ -39,7 +39,6 @@ pub const Value = union(enum) {
     },
     ptr:Ptr,
 
-    name_literal:[]u8, // NOTE: prefixed by a '.' (dot)
     word:u16,
 
     pub fn cast_Z(self:Value, comptime T:type) !T {
@@ -94,7 +93,7 @@ pub const Value = union(enum) {
         return self.is_int() or self.is_float();
     }
 
-    pub fn dupe(self:*Value, alloc:std.mem.Allocator, vm:*VM) !Value {
+    pub fn dupe(self:*Value, _:std.mem.Allocator, vm:*VM) !Value {
         return switch (self.*) {
             //.string => |str| .{ .string = try alloc.dupe(u8, str) },
 
@@ -128,7 +127,6 @@ pub const Value = union(enum) {
             },
             .pos  => @panic("TODO: Value.(ptr|pos).dupe(...)"),
 
-            .name_literal => |name| .{ .name_literal = try alloc.dupe(u8, name) },
             .word => |name| .{ .word = name },
         };
     }
@@ -243,7 +241,7 @@ pub const Value = union(enum) {
         return switch (self) {
             //.string => |str| std.mem.eql(u8, str, other.string),
             .null => false,
-            .name_literal, .void, .pos => unreachable, //cannot be used in comparison
+            .void, .pos => unreachable, //cannot be used in comparison
             .ptr => @panic("TODO: pointer arithmetic"),
             inline else => |v| v == @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
         };
@@ -252,7 +250,7 @@ pub const Value = union(enum) {
     pub fn less_than(self:Value, other:Value) bool {
         return switch (self) {
             //.string,
-            .name_literal, .bool, .void, .pos =>  unreachable, //less_than must be number
+            .bool, .void, .pos =>  unreachable, //less_than must be number
             .null => false,
             .ptr => @panic("TODO: pointer arithmetic"),
             inline else => |v| v < @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
@@ -261,7 +259,7 @@ pub const Value = union(enum) {
     pub fn greater_than(self:Value, other:Value) bool {
         return switch (self) {
             //.string,
-            .name_literal, .bool, .void, .pos  => unreachable, //greater_than must be number
+            .bool, .void, .pos  => unreachable, //greater_than must be number
             .null => false,
             .ptr => @panic("TODO: pointer arithmetic"),
             inline else => |v| v > @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,

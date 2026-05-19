@@ -138,7 +138,6 @@ pub const TokenizeResult = union(enum) {
         pub fn deinit(self:*Tokenized, tokenizer:*Tokenizer) void {
             tokenizer.alloc.free(self.positions);
             for (self.tokens) |tok| if (tok.value == .literal) switch (tok.value.literal) {
-                .name_literal => |name| tokenizer.alloc.free(name),
                 else => {},
             };
             tokenizer.alloc.free(self.tokens);
@@ -308,13 +307,6 @@ pub fn determine(self:*Tokenizer) !?Token {
                 .use = .{ .val = (self.ptrs.get(thing[1..]) orelse return error.UnknownIdent) }
             } },
         };
-
-    if (thing[0] == '.')
-        return .{
-            .line = self.line_no,
-            .value = .{ .literal = .{ .name_literal = try self.alloc.dupe(u8, thing[1..]) } }
-        };
-
 
     if (hlp.is_num(thing)) {
         return .{
