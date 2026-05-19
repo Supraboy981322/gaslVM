@@ -82,6 +82,10 @@ pub const TokenizerError = error {
     TypeMissmatch,
     InvalidToken,
     UnknownIdent,
+    MissplacedKeyword,
+    MisplacedKeyword,
+    MissingName,
+    MisplacedSymbol,
 } || SeekError
   || std.fmt.ParseIntError
   || std.fmt.ParseFloatError
