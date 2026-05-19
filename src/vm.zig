@@ -146,7 +146,10 @@ fn run(self:*VM) InterpResult {
         //}
         //if (comptime options.use_debug_trace) self.debug_trace();
         if (!instruction.is_op()) {
-            if (self.opts.mode == .debug) std.debug.print("ERROR HERE: {any}", .{instruction});
+            if (self.opts.mode == .debug) std.debug.print(
+                "ERROR HERE (offset: {d}): {any}",
+                .{self.ip - self.chunk.?.code.items.ptr,instruction}
+            );
             return .runtime(error.NotInstruction, instruction.name());
         }
 
@@ -175,9 +178,12 @@ fn run(self:*VM) InterpResult {
             },
             inline .take_off, .take, .take_copy => |which| {
                 if (comptime which == .take) self.held_top -= 1;
-                if (comptime which == .take_off)
-                    self.push((self.held_top - (self.pop().cast_Z(usize) catch |e| return .runtime(e, @tagName(which))))[0])
-                else
+                if (comptime which == .take_off) {
+                    const offset = self.pop().cast_Z(usize) catch |e| {
+                        return .runtime(e, @tagName(which));
+                    };
+                    self.push((self.held_top - offset)[0]);
+                } else
                     self.push(self.held_top[0]);
             },
             .syscall => {
