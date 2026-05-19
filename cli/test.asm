@@ -1,12 +1,16 @@
+data
+  10 str_len def
+end
+
 ptr str
 push $str
-push 10
+push %str_len
   alloc
 push byte 0
   save
 
 push $str
-push 10
+push %str_len
 push @build_string
   jmp_sav
   discard
@@ -18,7 +22,7 @@ push byte 1
 push byte 0
   save
 
-push 10
+push %str_len
 push $str getH ;host pointer to string
 push 1         ;stdout
 push SysCall#write
@@ -28,7 +32,7 @@ push $return_code
   overwrite
 
 push $str
-push 10
+push %str_len
   free
 
 push $return_code
