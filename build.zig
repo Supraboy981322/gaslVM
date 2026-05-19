@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     const mod = try module(b, opts, target, optimize, mod_root, common);
-    try tests(b, opts, target, optimize, mod_root);
+    try tests(b, opts, target, optimize, mod_root, common);
     try cli(b, opts, target, optimize, mod, common);
 }
 
@@ -80,6 +80,7 @@ fn tests(
     target:std.Build.ResolvedTarget,
     optimize:?std.builtin.OptimizeMode,
     mod_root:[]const u8,
+    common:*std.Build.Module,
 ) !void {
     const ze_tests = b.addTest(.{
         .root_module = b.addModule("tests", .{
@@ -88,6 +89,7 @@ fn tests(
             .optimize = optimize,
         }),
     });
+    ze_tests.root_module.addImport("common", common);
     ze_tests.root_module.addOptions("options", opts);
     const run_test = b.addRunArtifact(ze_tests);
     run_test.has_side_effects = true;
