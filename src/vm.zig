@@ -158,14 +158,29 @@ fn run(self:*VM) InterpResult {
             std.debug.print("\x1b[34mOPCODE:\x1b[0m {s}\n", .{@tagName(code)});
         switch (code) {
 
-            //generic OpCodes
+            //general OpCodes
             .no_op => {},
-            .discard => _ = self.pop(),
-            inline .@"return", .stop => |which| {
-                if ((comptime which == .stop) or self.saved_pos == null) return .okay(self.pop());
-                self.ip = self.saved_pos.?;
+            .syscall => {
+                const param_count = self.pop().cast_Z(usize) catch |e| {
+                    return .runtime(e, "syscall");
+                };
+                if (param_count > std.math.maxInt(u3)) {
+                    return .runtime(error.InvalidSyscallParam, null);
+                }
+                const name_str = self.pop().name_literal;
+                const syscall_name = std.meta.stringToEnum(
+                    std.posix.system.SYS, name_str
+                ) orelse return .runtime(error.InvalidSyscall, name_str);
+                const ret = self.syscall(syscall_name, @intCast(param_count)) catch |e| {
+                    return .runtime(e, null);
+                };
+                self.push(ret);
             },
-            .save_pos => self.saved_pos = self.ip,
+
+
+
+            //stack manipulation
+            .discard => _ = self.pop(),
             .push => {
                 const v:*Value = self.read_const() catch |e| return .runtime(e, "push");
                 self.push(v.*);
@@ -186,21 +201,15 @@ fn run(self:*VM) InterpResult {
                 } else
                     self.push(self.held_top[0]);
             },
-            .syscall => {
-                const param_count = self.pop().cast_Z(usize) catch |e| {
-                    return .runtime(e, "syscall");
-                };
-                if (param_count > std.math.maxInt(u3)) {
-                    return .runtime(error.InvalidSyscallParam, null);
-                }
-                const name_str = self.pop().name_literal;
-                const syscall_name = std.meta.stringToEnum(
-                    std.posix.system.SYS, name_str
-                ) orelse return .runtime(error.InvalidSyscall, name_str);
-                const ret = self.syscall(syscall_name, @intCast(param_count)) catch |e| {
-                    return .runtime(e, null);
-                };
-                self.push(ret);
+
+
+
+            //control flow
+            .save_pos => self.saved_pos = self.ip,
+            inline .@"return", .stop => |which| {
+                const should_end = (comptime which == .stop) or self.saved_pos == null;
+                if (should_end) return .okay(self.pop());
+                self.ip = self.saved_pos.?;
             },
             inline .jmp, .jmpif, .jmp_sav => |which| {
                 switch (comptime which) {
@@ -269,6 +278,7 @@ fn run(self:*VM) InterpResult {
                     std.debug.print("{any}\n", .{self.pop()})
                 else
                     return .runtime(error.IllegalInstruction, "print"),
+
 
 
             //pointers and allocation
