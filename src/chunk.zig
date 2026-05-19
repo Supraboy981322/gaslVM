@@ -9,35 +9,83 @@ const Value = value.Value;
 pub const OpCode = enum(u8) {
     //pops value from stack then jumps to last 'jmp_sav' position
     //  or ends VM
+    //  usage:
+    //      save_pos
+    //      push void
+    //        return
+    //      stop ;.{ .void = void }
     //    (behaves identically to 'stop' if no 'pos' is saved)
     @"return",
 
     //stops VM and returns value at top of stack to host
+    //  usage:
+    //      push byte 1
+    //        stop ;.{ .byte = 1 }
     stop,
 
-    //saves the current position in the bytecode
-    //  (for 'return' to jump back to)
+    //saves the current position in the bytecode (for 'return' to jump back to)
+    //  usage:
+    //      save_pos
+    //      push byte 1 
+    //        return
+    //      stop ;.{ .byte = 1 }
+    //      
     // NOTE: this (with 'return') could be used for control flow
     //   without creating labeled positions
     @"save_pos",
 
     //pops value from stack and pushes it to a secondary (smaller) stack
+    //  usage:
+    //      push byte 2
+    //      push byte 1
+    //        hold
+    //      discard
+    //      take
+    //        return ;.{ .byte = 1 }
     hold,
     //pops value from secondary stack and pushes it to main stack
+    //  (see 'hold' for usage)
     take,
 
     //behaves identically to 'save_pos' immediately followed by 'jmp'
+    //  usage:
+    //      push @foo
+    //        jmp_sav
+    //        stop ;.{ .byte = 1 }
+    //      pos foo
+    //      push byte 1
+    //        return
     jmp_sav,
 
     //dupes value from secondary stack into main stack
+    //  usage:
+    //      push byte 2
+    //        hold
+    //      push byte 1
+    //        hold
+    //      take_copy
+    //        discard
+    //      take
+    //        return ;.{ .byte = 1 }
     take_copy,
     //'take' but pops a number from main stack as an offset from 
     //  top of secondary stack
+    //  usage:
+    //      push byte 2
+    //        hold
+    //      push byte 1
+    //        hold
+    //      push byte 1
+    //        take_off
+    //        return ;.{ .byte = 2 }
     take_off,
 
     no_op, //does nothing; moves on to next instruction
 
     //push a value onto the stack
+    //  usage:
+    //      push 1
+    //        return ;.{ .byte = 1 }
     push,
 
     //arithmetic instructions
