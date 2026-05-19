@@ -46,6 +46,7 @@ pub const OpCode = enum(u8) {
     //pops value from secondary stack and pushes it to main stack
     //  (see 'hold' for usage)
     take,
+    hold_off,
 
     //behaves identically to 'save_pos' immediately followed by 'jmp'
     //  usage:
