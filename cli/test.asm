@@ -37,6 +37,7 @@ push %str_len
   free
 
 push $return_code
+  get
   stop
 
 pos build_string
