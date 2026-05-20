@@ -107,6 +107,16 @@ pub const InterpResult = union(enum) {
             .err = e,
         } };
     }
+
+    pub fn is_val(self:InterpResult,v:Value) bool {
+        if (self != .ok) return false;
+        for ([_]bool{
+            std.meta.activeTag(self.ok) == std.meta.activeTag(v),
+            self.ok.equals(v),
+        }) |check|
+            if (!check) return false;
+        return true;
+    }
 };
 
 pub fn interpret(self:*VM, chunk:*Chunk) InterpResult {
