@@ -13,6 +13,7 @@ reader:*std.Io.Reader,
 opts:Opts,
 
 pub const Opts = struct {
+    args:[]const []const u8 = &.{},
     defines:?common.DefineList = null,
     common:common.CommonOpts,
 };
@@ -65,7 +66,10 @@ pub fn do(self:*Interp) !VM.InterpResult {
     tokenized.deinit(&tokenizer);
     tokenizer.deinit(.{ .free_result = true });
 
-    var vm:VM = .init(self.alloc, .{ .mode = self.opts.common.mode });
+    var vm:VM = .init(self.alloc, .{
+        .mode = self.opts.common.mode,
+        .args = self.opts.args,
+    });
     defer vm.deinit();
     var res = vm.interpret(&compiled);
     switch (res) {

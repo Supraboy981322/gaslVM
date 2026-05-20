@@ -57,7 +57,8 @@ held:struct{
 
 opts:VMOpts,
 
-pub const VMOpts = packed struct {
+pub const VMOpts = struct {
+    args:[]const []const u8,
     mode:common.Mode,
 };
 
