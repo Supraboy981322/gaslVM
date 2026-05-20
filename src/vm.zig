@@ -372,13 +372,17 @@ fn run(self:*VM) InterpResult {
                 self.push(ptr);
             },
             .free => {
-                const len = self.pop().byte;
+                const len = self.pop();
+                const size = len.get_size();
+                const allocated_size = (len.cast_Z(usize) catch |e| {
+                    return .runtime(e, @tagName(code));
+                }) + size;
                 const ident = self.pop().ptr.ident;
                 const ptr:*value.Ptr = &self.chunk.?.constants.items[ident].ptr;
                 if (ptr.val == null) return .runtime(
                     error.UseOfUninitializedMemory, @tagName(code)
                 );
-                self.vm_alloc.free(ptr.val.?, @intCast(len)) catch |e| {
+                self.vm_alloc.free(ptr.val.?, @intCast(allocated_size)) catch |e| {
                     return .runtime(e, "free");
                 };
                 ptr.val = null;
