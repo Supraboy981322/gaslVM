@@ -85,16 +85,16 @@ pub const VM_Allocator = struct {
     }
 
     pub fn dump_window(self:*Self, start:u16, len:u16) void {
-        if (self.mode != .debug) return;
+        if (self.mode != .debug or start+len < 1) return;
         var count:usize = 0;
 
-        for (@max(start-10, 0)..start-1) |i| {
+        if (start > 0) for (if (start > 10) start-10 else 0 .. start-1) |i| {
             defer count += 1;
             std.debug.print("\x1b[33m{x:0>2}\x1b[0m ", .{self.buf[i]});
             if (@mod(count+1, 10) == 0) std.debug.print("\n", .{});
-        }
+        };
 
-        for (start-1..start+len-1) |i| {
+        for (if (start > 0) start-1 else 0 .. start+len-1) |i| {
             defer count += 1;
             std.debug.print("\x1b[31m{x:0>2}\x1b[0m ", .{self.buf[i]});
             if (@mod(count+1, 10) == 0) std.debug.print("\n", .{});
