@@ -12,14 +12,15 @@ const Tokenized = Tokenizer.TokenizeResult.Tokenized;
 
 const Compiler = @This();
 
-pub fn do(in:Tokenized, alloc:std.mem.Allocator, mode:common.Mode) !Chunk {
+pub fn do(in:Tokenized, alloc:std.mem.Allocator, opts:common.CommonOpts) !Chunk {
     var ptrs:std.AutoHashMap(usize, union(enum) {
         pos:?usize,
         val:u16,
     }) = .init(alloc);
     defer ptrs.deinit();
-    var res:Chunk = .init(alloc, try .init(
-        std.math.maxInt(u16), .{ .mode = mode })
+    var res:Chunk = .init(
+        alloc,
+        try .init(std.math.maxInt(u16), opts) //VM.Alloc
     );
     if (in.tokens.len == 0) {
         try res.add_op(.push, 0);
@@ -28,9 +29,9 @@ pub fn do(in:Tokenized, alloc:std.mem.Allocator, mode:common.Mode) !Chunk {
     } else
         try res.add_op(.no_op, 0);
 
-    for (in.positions) |pos| {
+    for (in.positions) |pos|
         try ptrs.put(pos, .{ .pos = null });
-    }
+
 
     for (in.tokens) |tok| {
         switch (tok.value) {

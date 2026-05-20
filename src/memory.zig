@@ -9,7 +9,7 @@ pub const VM_Allocator = struct {
     buf:[]u8,
     taken:[]bool,
     mode:common.Mode,
-    leak_test:bool = false,
+    leak_test:?bool = null,
 
     pub const Error = error {
         SegFault,
@@ -19,12 +19,7 @@ pub const VM_Allocator = struct {
 
     const Self = @This();
 
-    pub const VMAllocOpts = struct {
-        leak_test:bool = false,
-        mode:common.Mode = .debug,
-    };
-
-    pub fn init(mem_size:u16, opts:VMAllocOpts) !Self {
+    pub fn init(mem_size:u16, opts:common.CommonOpts) !Self {
         const buf = try std.heap.page_allocator.alloc(u8, mem_size);
         const taken:[]bool = try std.heap.page_allocator.alloc(bool, buf.len);
         for (taken) |*b| b.* = false;
@@ -32,12 +27,12 @@ pub const VM_Allocator = struct {
             .buf = buf,
             .taken = taken,
             .mode = opts.mode,
-            .leak_test = opts.leak_test,
+            .leak_test = opts.vm_leak_test,
         };
     }
 
     pub fn deinit(self:*Self) void {
-        if (self.mode == .debug or self.leak_test)
+        if (self.leak_test orelse (self.mode == .debug))
             for (self.taken, 0..) |slot, i| if (slot)
                 std.debug.print("\nVM.Allocator (LEAK): offset|{d}|\n", .{i});
         std.heap.page_allocator.free(self.taken);

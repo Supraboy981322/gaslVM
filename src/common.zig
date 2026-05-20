@@ -21,6 +21,11 @@ pub const Mode = enum(u4) {
     silent, //silences all stdio output to avoid stupid Zig test assumptions
 };
 
+pub const CommonOpts = struct {
+    mode:Mode = .debug,
+    vm_leak_test:?bool = null,
+};
+
 pub fn KV(comptime K:type, comptime V:type) type {
     return struct {
         k:K,

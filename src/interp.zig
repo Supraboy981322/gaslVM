@@ -13,8 +13,8 @@ reader:*std.Io.Reader,
 opts:Opts,
 
 pub const Opts = struct {
-    mode:common.Mode = .debug,
     defines:?common.DefineList = null,
+    common:common.CommonOpts,
 };
 
 pub fn init(alloc:std.mem.Allocator, reader:*std.Io.Reader, opts:Opts) Interp {
@@ -49,14 +49,14 @@ pub fn do(self:*Interp) !VM.InterpResult {
     };
     errdefer if (!is_compiled) tokenized.deinit(&tokenizer);
 
-    if (self.opts.mode == .debug) {
+    if (self.opts.common.mode == .debug) {
         std.debug.print("\n\n==== tokenized ====\n", .{});
         for (tokenized.tokens) |token| @import("debug.zig").print_token(token);
     }
 
-    var compiled = try compiler.do(tokenized, self.alloc, self.opts.mode);
+    var compiled = try compiler.do(tokenized, self.alloc, self.opts.common);
     defer compiled.deinit();
-    if (self.opts.mode == .debug) {
+    if (self.opts.common.mode == .debug) {
         std.debug.print("\n\n==== compiled ====\n", .{});
         @import("debug.zig").print_chunk(compiled);
         std.debug.print("\n\n==== interpreted ====\n", .{});
@@ -65,8 +65,7 @@ pub fn do(self:*Interp) !VM.InterpResult {
     tokenized.deinit(&tokenizer);
     tokenizer.deinit(.{ .free_result = true });
 
-    var vm:VM = .init(self.alloc, .{ .mode = self.opts.mode });
-    vm.vm_alloc.leak_test = true;
+    var vm:VM = .init(self.alloc, .{ .mode = self.opts.common.mode });
     defer vm.deinit();
     var res = vm.interpret(&compiled);
     switch (res) {
