@@ -240,9 +240,9 @@ pub const Value = union(enum) {
     pub fn equals(self:Value, other:Value) bool {
         return switch (self) {
             //.string => |str| std.mem.eql(u8, str, other.string),
-            .null => false,
-            .void, .pos => unreachable, //cannot be used in comparison
+            .void, .null => std.meta.activeTag(other) == std.meta.activeTag(self),
             .ptr => @panic("TODO: pointer arithmetic"),
+            .pos => |p| if (other == .pos) p.ident == self.pos.ident else false,
             inline else => |v| v == @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
         };
     }
