@@ -321,7 +321,11 @@ fn run(self:*VM) InterpResult {
             .save => {
                 const val = self.pop();
                 const ptr = self.pop();
-                self.vm_alloc.put(ptr.ptr.val.?, val.byte) catch |e| {
+                const bytes = val.serialize(self.alloc) catch |e| {
+                    return .runtime(e, @tagName(code));
+                };
+                defer self.alloc.free(bytes);
+                self.vm_alloc.putN(ptr.ptr.val.?, bytes) catch |e| {
                     return .runtime(e, "save");
                 };
             },
@@ -330,29 +334,32 @@ fn run(self:*VM) InterpResult {
                 if (ptr.val == null) return .runtime(
                     error.UseOfUninitializedMemory, @tagName(which)
                 );
-                const val = self.vm_alloc.get(ptr.val.?, 1) catch |e| {
-                    return .runtime(e, "get");
+                const start = self.vm_alloc.get(ptr.val.?, 1) catch |e| {
+                    return .runtime(e, @tagName(which));
                 };
-                self.push(
-                    if (which == .getH)
-                        .{ .u64 = @intFromPtr(val) }
-                    else
-                        .{ .byte = val[0] });
+                if (which == .getH) {
+                    self.push(.{ .u64 = @intFromPtr(start+1) });
+                    continue;
+                }
+                const len = Value.sizeOf(@enumFromInt(start[0]));
+                self.push(.deserialize(start[0..len+1]));
             },
             .overwrite => {
                 var ptr = self.pop().ptr;
                 if (ptr.val == null)
                     ptr = self.chunk.?.constants.items[ptr.ident].ptr;
-                const val = self.pop().cast_Z(u8) catch |e| {
-                    return .runtime(e, "overwrite");
+                const val = self.pop();
+                const bytes = val.serialize(self.alloc) catch |e| {
+                    return .runtime(e, @tagName(code));
                 };
-                self.vm_alloc.put(ptr.val.?, val) catch |e| {
-                    return .runtime(e, "overwrite");
+                defer self.alloc.free(bytes);
+                self.vm_alloc.putN(ptr.val.?, bytes) catch |e| {
+                    return .runtime(e, @tagName(code));
                 };
             },
             // TODO: maybe replace this
             .alloc => {
-                const len = self.pop().byte;
+                const len = self.pop().byte+1;
                 var ptr = self.pop();
                 ptr.ptr.val = self.vm_alloc.alloc(len) catch |e| {
                     return .runtime(e, "alloc");
