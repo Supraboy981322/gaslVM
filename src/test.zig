@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Value = @import("value.zig").Value;
+
 const Interp = @import("interp.zig");
 const VM = @import("vm.zig");
 
@@ -14,10 +16,7 @@ var result:VM.InterpResult = undefined;
 test "empty source" {
     _ = try check(
         run(""),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .void,
-        })
+        .void,
     );
 }
 
@@ -27,11 +26,7 @@ test "(values) int" {
             \\push int 12
             \\  return
         ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .int,
-            result.ok.int == 12,
-        })
+        .{ .int = 12 },
     );
 }
 
@@ -41,11 +36,7 @@ test "(values) byte" {
             \\push byte 97 
             \\  return
         ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .byte,
-            result.ok.byte == 'a',
-        })
+        .{ .byte = 'a' },
     );
 }
 
@@ -55,11 +46,7 @@ test "(values) uint" {
             \\push uint 12
             \\  return
         ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .uint,
-            result.ok.uint == 12,
-        })
+        .{ .uint = 12 },
     );
 }
 
@@ -70,11 +57,7 @@ test "(data section) macros" {
             \\push %foo
             \\  return
         ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .byte,
-            result.ok.byte == 10,
-        })
+        .{ .byte = 10 }
     );
 }
 
@@ -85,11 +68,7 @@ test "(data section) word set" {
             \\push Foo#bar
             \\  return
         ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .word,
-            result.ok.word == 1,
-        })
+        .{ .word = 1 },
     );
 }
 
@@ -102,11 +81,7 @@ test "(opcodes) bool" {
             \\  eql
             \\    return
         ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .bool,
-            result.ok.bool,
-        })
+        .{ .bool = true }
     );
 }
 
@@ -121,11 +96,7 @@ test "basic math" {
             \\  negate
             \\    return
         ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .f32,
-            result.ok.f32 == -25.760002,
-        })
+        .{ .f32 = -25.760002 },
     );
 }
 
@@ -142,11 +113,7 @@ test "pointers" {
             \\  get
             \\  return
         ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .byte,
-            result.ok.byte == 4,
-        })
+        .{ .byte = 4 },
     );
 }
 
@@ -177,24 +144,22 @@ test "loop" {
             \\  get
             \\  return
         ),
-        @constCast(&[_]bool{
-            result == .ok,
-            result.ok == .byte,
-            result.ok.byte == 10,
-        }),
+        .{ .byte = 10 },
     );
 }
 
 fn run(code:[]const u8) !std.mem.Allocator {
     const alloc = std.testing.allocator;
     var reader:std.Io.Reader = .fixed(code);
-    var interp:Interp = .init(alloc, &reader, .{ .mode = .silent });
+    var interp:Interp = .init(alloc, &reader, .{
+        .common = .{ .mode = .silent },
+    });
     defer interp.deinit();
     result = try interp.do();
     return alloc;
 }
 
-pub fn check(res:anyerror!std.mem.Allocator, conditions:[]bool) !std.mem.Allocator {
+pub fn check(res:anyerror!std.mem.Allocator, expected:Value) !std.mem.Allocator {
     var alloc:std.mem.Allocator = undefined;
     try std.testing.expect(
         if (res) |a| blk: {
@@ -202,6 +167,12 @@ pub fn check(res:anyerror!std.mem.Allocator, conditions:[]bool) !std.mem.Allocat
             break :blk true;
         } else |_| false
     );
-    for (conditions) |chk| try std.testing.expect(chk);
+    std.testing.expect(result.is_val(expected)) catch |e| {
+        std.debug.print(
+            \\expected: {any}
+            \\got: {any}
+        ++ "\n", .{expected, result});
+        return e;
+    };
     return alloc;
 }
