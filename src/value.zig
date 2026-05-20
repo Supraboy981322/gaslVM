@@ -282,10 +282,13 @@ pub const Value = union(enum) {
         var res:[]u8 = undefined;
 
         switch (self) {
-            .null => unreachable, // TODO:
-            .void => unreachable, // TODO:
-            .pos => unreachable, // TODO:
-            .ptr => unreachable, // TODO:
+            .void, .null => res = try alloc.alloc(u8, 1),
+            .pos => |v| {
+                if (v == .ident) @panic("TODO: serialize(Value.pos.ident)");
+                res = try alloc.alloc(u8, @sizeOf(@TypeOf(v.pos))+1);
+                for (std.mem.toBytes(v.pos), res[1..]) |c, *b| b.* = c;
+            },
+            .ptr => return error.NotImplemented, //unreachable, // TODO:
 
             inline else => |v| {
                 const size = @sizeOf(@TypeOf(v));
