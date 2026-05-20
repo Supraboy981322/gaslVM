@@ -18,7 +18,7 @@ push @build_string
 
 ptr return_code
 push $return_code
-push byte 1
+push byte 8
   alloc
 push byte 0
   save
