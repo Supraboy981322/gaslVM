@@ -66,7 +66,7 @@ test "(values) uint" {
 test "(data section) macros" {
     _ = try check(
         run(
-            \\data 10 foo def end
+            \\data { 10 } foo macro end
             \\push %foo
             \\  return
         ),

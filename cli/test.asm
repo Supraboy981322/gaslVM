@@ -1,5 +1,5 @@
 data
-  10 str_len def
+  { 10 } str_len macro
 end
 
 ptr str
