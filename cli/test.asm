@@ -1,5 +1,5 @@
 data
-  { 10 } str_len macro
+  { byte 10 } str_len macro
   ; TODO: debug macros; creating a complex macro has strange behavior
 end
 
