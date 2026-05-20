@@ -3,6 +3,8 @@ const value = @import("value.zig");
 const chunk = @import("chunk.zig");
 
 pub const Mode = common.Mode;
+pub const CommonOpts = common.CommonOpts;
+pub const Data = common.Data;
 
 pub const Define = common.Define;
 pub const DefineList = common.DefineList;
