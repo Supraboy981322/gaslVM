@@ -33,7 +33,7 @@ reader:?*std.Io.Reader = null,
 ptrs:std.StringHashMap(u16) = undefined,
 labels:std.StringHashMap(usize) = undefined,
 words:std.StringHashMap([]common.Data.TokenWord) = undefined,
-defs:std.StringHashMap([]u8) = undefined,
+macros:std.StringHashMap([]u8) = undefined,
 ident_counter:u16 = 0,
 
 pub fn init(alloc:std.mem.Allocator) Tokenizer {
@@ -84,7 +84,8 @@ pub const TokenizerError = error {
     MisplacedKeyword,
     MissingName,
     MisplacedSymbol,
-    UnknownDef,
+    UnknownMacro,
+    MissingMacroDef,
 } || SeekError
   || std.fmt.ParseIntError
   || std.fmt.ParseFloatError
@@ -150,12 +151,12 @@ pub const TokenizeResult = union(enum) {
     pub fn okay(self:*Tokenizer) !TokenizeResult {
         const tokens = try self.res.toOwnedSlice(self.alloc);
         {
-            var itr = self.defs.iterator();
-            while (itr.next()) |def| {
-                self.alloc.free(def.value_ptr.*);
-                self.alloc.free(def.key_ptr.*);
+            var itr = self.macros.iterator();
+            while (itr.next()) |macro| {
+                self.alloc.free(macro.value_ptr.*);
+                self.alloc.free(macro.key_ptr.*);
             }
-            self.defs.deinit();
+            self.macros.deinit();
         }
         return .{ .ok = .{
             .tokens = tokens,
@@ -181,11 +182,11 @@ pub const TokenizeResult = union(enum) {
     }
 };
 
-pub fn do(self:*Tokenizer, reader:*std.Io.Reader) !TokenizeResult {
+pub fn do(self:*Tokenizer, reader:*std.Io.Reader) TokenizerError!TokenizeResult {
     self.reader = reader;
     self.ptrs = .init(self.alloc);
     try self.init_words();
-    self.defs = .init(self.alloc);
+    self.macros = .init(self.alloc);
     self.labels = .init(self.alloc);
     var string:?u8 = null;
 
@@ -288,13 +289,18 @@ pub fn determine(self:*Tokenizer) !?Token {
         }
     }
 
-    if (thing[0] == '%') {
-        if (self.defs.get(thing[1..])) |def| {
-            self.mem.clearAndFree(self.alloc);
-            try self.mem.appendSlice(self.alloc, def);
-            return self.determine();
+    if (thing[0] == '%' or thing[0] == '&') {
+        if (self.macros.get(thing[1..])) |macro| {
+            var recurse:Tokenizer = .init(self.alloc);
+            defer recurse.deinit(.{ .free_result = true });
+            var reader:std.Io.Reader = .fixed(macro);
+            const res = try recurse.do(&reader);
+            if (res != .ok) return res.err.err;
+            try self.res.appendSlice(self.alloc, res.ok.tokens);
+            recurse.alloc.free(res.ok.tokens);
+            return null;
         } else
-            return error.UnknownDef;
+            return error.UnknownMacro;
     }
 
     if (thing[0] == '@') {

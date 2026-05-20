@@ -6,7 +6,12 @@ const TokenWord = common.Data.TokenWord;
 
 pub const DataKeywords = enum {
     words,
-    def,
+    macro,
+};
+
+pub const DataSymbols = enum {
+    @"(", @")",
+    @"{", @"}",
 };
 
 const Parser = @This();
@@ -31,9 +36,10 @@ fn do(self:*Parser) !void {
     defer alloc.free(collection);
 
     var name:?[]u8 = null;
-    var parsing_collection:bool = false;
+    var parsing:?enum{ collection, macro } = null;
 
     var value:?[]u8 = null;
+    defer if (value) |v| alloc.free(v);
 
     while (try self.tokenizer.take_word_or_null()) |word| {
         if (std.meta.stringToEnum(Keyword, word)) |keyword| {
@@ -54,9 +60,9 @@ fn do(self:*Parser) !void {
                         collection = try alloc.alloc([]u8, 0);
                         name = null;
                     },
-                    .def => {
-                        try self.add_def(value.?, name.?);
-                        alloc.free(collection);
+                    .macro => {
+                        if (value == null) return error.MissingMacroDef;
+                        try self.add_macro(try alloc.dupe(u8, value.?[0..value.?.len-1]), name.?);
                         collection = try alloc.alloc([]u8, 0);
                         name = null;
                     },
@@ -66,26 +72,48 @@ fn do(self:*Parser) !void {
             return error.InvalidToken;
         }
 
-        if (std.mem.eql(u8, word, "(")) {
-            alloc.free(word);
-            if (collection.len > 0) return error.MisplacedSymbol;
-            parsing_collection = true;
-            continue;
-        } else if (std.mem.eql(u8, word, ")")) {
-            alloc.free(word);
-            name = try self.tokenizer.take_word();
-            parsing_collection = false;
-            continue;
-        }
+        if (std.meta.stringToEnum(DataSymbols, word)) |symbol| switch (symbol) {
+            inline .@"(", .@"{" => |which| if (parsing == null) {
+                alloc.free(word);
+                if (collection.len > 0) return error.MisplacedSymbol;
+                parsing = switch (comptime which) {
+                    .@"(" => .collection,
+                    .@"{" => .macro,
+                    else => unreachable,
+                };
+                continue;
+            },
+            inline .@")", .@"}" => |which|
+                if (parsing == (comptime if (which == .@")") .collection else .macro)) {
+                    alloc.free(word);
+                    name = try self.tokenizer.take_word();
+                    parsing = null;
+                    continue;
+                },
+        };
 
-        if (parsing_collection) {
-            const new = try alloc.alloc([]u8, collection.len+1);
-            for (collection, 0..) |item, i| new[i] = item;
-            new[new.len-1] = word;
-            alloc.free(collection);
-            collection = new;
-            continue;
-        }
+        if (parsing) |p| switch (p) {
+            .collection => {
+                const new = try alloc.alloc([]u8, collection.len+1);
+                for (collection, 0..) |item, i| new[i] = item;
+                new[new.len-1] = word;
+                alloc.free(collection);
+                collection = new;
+                continue;
+            },
+            .macro => {
+                defer alloc.free(word);
+                var new = try alloc.alloc(u8, if (value) |v| v.len+word.len+1 else word.len+1);
+                if (value) |v| {
+                    for (0..v.len) |i| new[i] = v[i];
+                    alloc.free(v);
+                }
+                for (0..word.len) |i| new[(new.len-word.len-1)+i] = word[i];
+                new[new.len-1] = ' ';
+                value = new;
+                continue;
+            },
+        };
 
         if (value) |_|
             name = word
@@ -114,6 +142,6 @@ pub fn add_words(self:*Parser, collection:[][]u8, name:[]u8) !void {
     });
 }
 
-pub fn add_def(self:*Parser, value:[]u8, name:[]u8) !void {
-    try self.tokenizer.defs.put(name, value);
+pub fn add_macro(self:*Parser, value:[]u8, name:[]u8) !void {
+    try self.tokenizer.macros.put(name, value);
 }
