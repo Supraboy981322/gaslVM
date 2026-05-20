@@ -16,19 +16,43 @@ push @build_string
   jmp_sav
   discard
 
+ptr return_code
+push $return_code
+push u16 1
+  alloc
+push byte 0
+  save
+
 push %str_len
 push $str getH ;host pointer to string
 push usize 1     ;stdout
 push SysCall#write
 push byte 3
   syscall
-  discard
+push $return_code
+  overwrite
 
 push $str
 push %str_len
   free
 
-push byte 0
+push $return_code
+  get
+push usize 0
+  eql
+push @ok
+  jmpif
+
+;exit code 1
+push byte 1
+push @skip
+  jmp
+
+;for exit code 0
+pos ok
+  push byte 0
+pos skip
+
 push SysCall#exit
 push byte 1
   syscall
