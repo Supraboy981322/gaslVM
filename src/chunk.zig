@@ -7,6 +7,9 @@ pub const CodeByte = common.CodeByte;
 const Value = value.Value;
 
 pub const OpCode = enum(u8) {
+    //can be used for assertions
+    @"unreachable",
+
     //pops value from stack then jumps to last 'jmp_sav' position
     //  or ends VM
     //  usage:

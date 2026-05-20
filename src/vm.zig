@@ -198,7 +198,13 @@ fn run(self:*VM) InterpResult {
                 };
                 self.push(ret);
             },
-
+            .@"unreachable" =>
+                if (comptime options.use_debug_trace)
+                    unreachable //'unreachable' instruction triggered
+                else if (self.opts.mode == .debug)
+                    return self.panic("unreachable position")
+                else
+                    @breakpoint(), //unreachable position in code
 
 
             //stack manipulation
