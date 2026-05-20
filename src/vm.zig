@@ -445,6 +445,9 @@ fn pop_usize(self:*VM) usize {
     return @as(*usize, @ptrCast(@alignCast(self.pop().get()))).*;
 }
 
+// TODO:
+//  probably need a wrapper for std.posix.system.SYS
+//    it has a different underlying int on different systems
 pub fn syscall(
     self:*VM,
     syscall_name:std.posix.system.SYS,
@@ -487,5 +490,14 @@ pub fn syscall(
         ),
         else => return error.InvalidSyscallParam,
     };
-    return .mk_int(.u64, usize, res);
+    // TODO: std.posix will probably get removed (which is stupid)
+    const errno = std.posix.errno(res);
+    return .mk_int(.u16, u16, @intFromEnum(errno));
+}
+
+pub fn panic(_:*VM, msg:[]const u8) noreturn {
+    std.debug.panic(
+        \\{s}
+        \\ TODO: custom panic
+    , .{ msg });
 }
