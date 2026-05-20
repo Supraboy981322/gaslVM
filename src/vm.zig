@@ -344,7 +344,7 @@ fn run(self:*VM) InterpResult {
                     return .runtime(e, @tagName(which));
                 };
                 if (which == .getH) {
-                    self.push(.{ .u64 = @intFromPtr(start+1) });
+                    self.push(.{ .usize = @intFromPtr(start+1) });
                     continue;
                 }
                 const len = Value.sizeOf(@enumFromInt(start[0]));
