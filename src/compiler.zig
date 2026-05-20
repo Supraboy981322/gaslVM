@@ -18,7 +18,9 @@ pub fn do(in:Tokenized, alloc:std.mem.Allocator, mode:common.Mode) !Chunk {
         val:u16,
     }) = .init(alloc);
     defer ptrs.deinit();
-    var res:Chunk = .init(alloc, try .init(std.math.maxInt(u16), mode));
+    var res:Chunk = .init(alloc, try .init(
+        std.math.maxInt(u16), .{ .mode = mode })
+    );
     if (in.tokens.len == 0) {
         try res.add_op(.push, 0);
         _ = try res.add_const(.void, 0);

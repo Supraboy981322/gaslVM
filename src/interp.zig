@@ -66,6 +66,7 @@ pub fn do(self:*Interp) !VM.InterpResult {
     tokenizer.deinit(.{ .free_result = true });
 
     var vm:VM = .init(self.alloc, .{ .mode = self.opts.mode });
+    vm.vm_alloc.leak_test = true;
     defer vm.deinit();
     var res = vm.interpret(&compiled);
     switch (res) {
