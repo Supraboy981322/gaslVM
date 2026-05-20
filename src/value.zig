@@ -240,29 +240,41 @@ pub const Value = union(enum) {
     pub fn equals(self:Value, other:Value) bool {
         return switch (self) {
             //.string => |str| std.mem.eql(u8, str, other.string),
-            .void, .null => std.meta.activeTag(other) == std.meta.activeTag(self),
-            .ptr => @panic("TODO: pointer arithmetic"),
-            .pos => |p| if (other == .pos) p.ident == self.pos.ident else false,
-            inline else => |v| v == @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
+            .void, .null =>
+                std.meta.activeTag(other) == std.meta.activeTag(self),
+            .ptr =>
+                @panic("TODO: pointer arithmetic"),
+            .pos => |p|
+                if (other == .pos) p.ident == self.pos.ident else false,
+            inline else => |v|
+                v == @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
         };
     }
 
     pub fn less_than(self:Value, other:Value) bool {
         return switch (self) {
             //.string,
-            .bool, .void, .pos =>  unreachable, //less_than must be number
-            .null => false,
-            .ptr => @panic("TODO: pointer arithmetic"),
-            inline else => |v| v < @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
+            .bool, .void, .pos =>
+                unreachable, //less_than must be number
+            .null =>
+                false,
+            .ptr =>
+                @panic("TODO: pointer arithmetic"),
+            inline else => |v|
+                v < @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
         };
     }
     pub fn greater_than(self:Value, other:Value) bool {
         return switch (self) {
             //.string,
-            .bool, .void, .pos  => unreachable, //greater_than must be number
-            .null => false,
-            .ptr => @panic("TODO: pointer arithmetic"),
-            inline else => |v| v > @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
+            .bool, .void, .pos =>
+                unreachable, //greater_than must be number
+            .null =>
+                false,
+            .ptr =>
+                @panic("TODO: pointer arithmetic"),
+            inline else => |v|
+                v > @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
         };
     }
 

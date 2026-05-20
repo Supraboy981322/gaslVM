@@ -241,8 +241,8 @@ fn run(self:*VM) InterpResult {
             //control flow
             .save_pos => self.saved_pos = self.ip,
             inline .@"return", .stop => |which| {
-                const should_end = (comptime which == .stop) or self.saved_pos == null;
-                if (should_end) return .okay(self.pop());
+                const end = (comptime which == .stop) or self.saved_pos == null;
+                if (end) return .okay(self.pop());
                 self.ip = self.saved_pos.?;
                 self.saved_pos = null;
             },
@@ -371,7 +371,9 @@ fn run(self:*VM) InterpResult {
                 const len = self.pop().byte;
                 const ident = self.pop().ptr.ident;
                 const ptr:*value.Ptr = &self.chunk.?.constants.items[ident].ptr;
-                if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "free");
+                if (ptr.val == null) return .runtime(
+                    error.UseOfUninitializedMemory, @tagName(code)
+                );
                 self.vm_alloc.free(ptr.val.?, @intCast(len)) catch |e| {
                     return .runtime(e, "free");
                 };
@@ -382,7 +384,10 @@ fn run(self:*VM) InterpResult {
                 const pre = self.pop();
                 const other = pre.cast_Z(u16) catch |e| {
                     return .runtime(
-                        if (e == error.BadPtr) error.UseOfUninitializedMemory else e,
+                        if (e == error.BadPtr)
+                            error.UseOfUninitializedMemory
+                        else
+                            e,
                         @tagName(op)
                     );
                 };
@@ -426,7 +431,11 @@ fn pop_usize(self:*VM) usize {
     return @as(*usize, @ptrCast(@alignCast(self.pop().get()))).*;
 }
 
-pub fn syscall(self:*VM, syscall_name:std.posix.system.SYS, param_count:u3) !Value {
+pub fn syscall(
+    self:*VM,
+    syscall_name:std.posix.system.SYS,
+    param_count:u3
+) !Value {
     const res = switch (param_count) {
         0 => std.os.linux.syscall0(syscall_name),
         1 => std.os.linux.syscall1(syscall_name,
