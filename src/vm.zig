@@ -359,9 +359,13 @@ fn run(self:*VM) InterpResult {
             },
             // TODO: maybe replace this
             .alloc => {
-                const len = self.pop().byte+1;
+                const len = self.pop();
+                const size = len.get_size();
                 var ptr = self.pop();
-                ptr.ptr.val = self.vm_alloc.alloc(len) catch |e| {
+                const alloc_size = (len.cast_Z(usize) catch |e| {
+                    return .runtime(e, @tagName(code));
+                }) + size;
+                ptr.ptr.val = self.vm_alloc.alloc(@intCast(alloc_size)) catch |e| {
                     return .runtime(e, "alloc");
                 };
                 self.chunk.?.constants.items[ptr.ptr.ident] = ptr;
