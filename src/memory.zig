@@ -56,6 +56,7 @@ pub const VM_Allocator = struct {
     }
 
     pub fn free(self:*Self, pos:u16, amount:u16) !void {
+        errdefer self.dump_window(pos, amount);
         for (0..amount) |i| {
             if (self.taken[pos+i])
                 self.taken[pos+i] = false
@@ -65,6 +66,7 @@ pub const VM_Allocator = struct {
     }
 
     pub fn get(self:*Self, pos:u16, len:u16) ![*]u8 {
+        errdefer self.dump_window(pos, len);
         for (self.taken[pos..pos+len]) |used|
             if (!used) return error.SegFault; //getting unallocated memory
         return self.buf[pos..pos+len].ptr;
@@ -73,5 +75,33 @@ pub const VM_Allocator = struct {
     pub fn put(self:*Self, pos:u16, what:u8) !void {
         if (!self.taken[pos]) return error.SegFault; //setting unallocated memory
         self.buf[pos] = what;
+    }
+
+    pub fn putN(self:*Self, pos:u16, what:[]u8) !void {
+        errdefer self.dump_window(pos, @intCast(what.len));
+        for (0..what.len) |i| try self.put(@intCast(pos+i), what[i]);
+    }
+
+    pub fn dump_window(self:*Self, start:u16, len:u16) void {
+        if (self.mode != .debug) return;
+        var count:usize = 0;
+
+        for (@max(start-10, 0)..start-1) |i| {
+            defer count += 1;
+            std.debug.print("\x1b[33m{x:0>2}\x1b[0m ", .{self.buf[i]});
+            if (@mod(count+1, 10) == 0) std.debug.print("\n", .{});
+        }
+
+        for (start-1..start+len-1) |i| {
+            defer count += 1;
+            std.debug.print("\x1b[31m{x:0>2}\x1b[0m ", .{self.buf[i]});
+            if (@mod(count+1, 10) == 0) std.debug.print("\n", .{});
+        }
+
+        for (start+len-1..@min(start+len+10, self.buf.len-1)) |i| {
+            defer count += 1;
+            std.debug.print("\x1b[33m{x:0>2}\x1b[0m ", .{self.buf[i]});
+            if (@mod(count+1, 10) == 0) std.debug.print("\n", .{});
+        }
     }
 };
