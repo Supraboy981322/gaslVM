@@ -326,6 +326,10 @@ pub const Value = union(enum) {
         };
     }
 
+    pub fn get_size(self:Value) usize {
+        return Value.sizeOf(std.meta.activeTag(self));
+    }
+
     pub fn sizeOf(what:std.meta.Tag(Value)) usize {
         switch (what) {
             inline else => |t| {
