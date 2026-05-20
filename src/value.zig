@@ -265,4 +265,62 @@ pub const Value = union(enum) {
             inline else => |v| v > @as(*@TypeOf(v), @ptrCast(@alignCast(other.get()))).*,
         };
     }
+
+    pub fn serialize(self:Value, alloc:std.mem.Allocator) ![]u8 {
+        var res:[]u8 = undefined;
+
+        switch (self) {
+            .null => unreachable, // TODO:
+            .void => unreachable, // TODO:
+            .pos => unreachable, // TODO:
+            .ptr => unreachable, // TODO:
+
+            inline else => |v| {
+                const size = @sizeOf(@TypeOf(v));
+                res = try alloc.alloc(u8, size+1);
+                for (std.mem.toBytes(v), 0..) |b, i| res[i+1] = b;
+            },
+        }
+
+        res[0] = @intFromEnum(std.meta.activeTag(self));
+        return res;
+    }
+
+    pub fn deserialize(bytes:[]u8) Value {
+        const t:std.meta.Tag(Value) = @enumFromInt(bytes[0]);
+        const bytesAsValue = std.mem.bytesAsValue;
+        return switch (t) {
+            .int => .{ .int = bytesAsValue(i256, bytes[1..]).* },
+            .uint => .{ .uint = bytesAsValue(u256, bytes[1..]).* },
+            .byte => .{ .byte = bytes[1] },
+
+            .f32 => .{ .f32 = bytesAsValue(f32, bytes[1..]).* },
+            .f64 => .{ .f64 = bytesAsValue(f64, bytes[1..]).* },
+
+            .s8 => .{ .s8 = bytesAsValue(i8, bytes[1..]).* },
+            .s16 => .{ .s16 = bytesAsValue(i16, bytes[1..]).* },
+            .s32 => .{ .s32 = bytesAsValue(i32, bytes[1..]).* },
+            .s64 => .{ .s64 = bytesAsValue(i64, bytes[1..]).* },
+
+            .u16 => .{ .u16 = bytesAsValue(u16, bytes[1..]).* },
+            .u32 => .{ .u32 = bytesAsValue(u32, bytes[1..]).* },
+            .u64 => .{ .u64 = bytesAsValue(u64, bytes[1..]).* },
+
+            .bool => .{ .bool = bytes[1] == 1 },
+
+            .word => .{ .word = bytesAsValue(u16, bytes[1..]).* },
+
+            else => unreachable,
+        };
+    }
+
+    pub fn sizeOf(what:std.meta.Tag(Value)) usize {
+        switch (what) {
+            inline else => |t| {
+                // I know how this looks, but deal with it
+                @setEvalBranchQuota(10000);
+                return @sizeOf(std.meta.fieldInfo(Value, t).type);
+            },
+        }
+    }
 };
