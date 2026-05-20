@@ -16,29 +16,24 @@ push @build_string
   jmp_sav
   discard
 
-ptr return_code
-push $return_code
-push u64 1
-  alloc
-push byte 0
-  save
-
 push %str_len
 push $str getH ;host pointer to string
-push 1         ;stdout
+push usize 1     ;stdout
 push SysCall#write
 push byte 3
   syscall
-push $return_code
-  overwrite
+  discard
 
 push $str
 push %str_len
   free
 
-push $return_code
-  get
-  stop
+push byte 0
+push SysCall#exit
+push byte 1
+  syscall
+
+unreachable
 
 pos build_string
 
