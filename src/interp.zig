@@ -79,7 +79,7 @@ pub fn do(self:*Interp) !VM.InterpResult {
             return .okay(try ok.dupe(self.alloc, &vm));
         },
         .runtime_err => |e| return .{
-            .compile_err = .{
+            .runtime_err = .{
                 .err = e.err,
                 .info = blk: {
                     const line_no = vm.get_line_no();
