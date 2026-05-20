@@ -25,7 +25,7 @@ push byte 0
 
 push %str_len
 push $str getH ;host pointer to string
-push usize 1     ;stdout
+push usize 1   ;stdout
 push SysCall#write
 push byte 3
   syscall
@@ -53,6 +53,7 @@ pos ok
   push byte 0
 pos skip
 
+;exit code should already be pushed
 push SysCall#exit
 push byte 1
   syscall
