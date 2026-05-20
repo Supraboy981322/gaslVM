@@ -353,6 +353,9 @@ pub fn determine(self:*Tokenizer) !?Token {
                     .f32 => .{ .f32 = try parseFloat(f32, thing) },
                     .f64 => .{ .f64 = try parseFloat(f32,  thing) },
 
+                    .usize => .{ .usize = try parseInt(usize, thing, 10) },
+                    .isize => .{ .isize = try parseInt(isize, thing, 10) },
+
                     else => return error.TypeMissmatch,
                 }
             }

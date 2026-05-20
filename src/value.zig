@@ -12,7 +12,6 @@ pub const Ptr = struct {
 };
 
 pub const Value = union(enum) {
-    //string:[]u8, // TODO: replace with 'Value.ptr' to byte
     int:i256,
     uint:u256,
     byte:u8,
@@ -41,11 +40,15 @@ pub const Value = union(enum) {
 
     word:u16,
 
+    usize:usize,
+    isize:isize,
+
     pub fn cast_Z(self:Value, comptime T:type) !T {
         return switch (self) {
             inline .int, .byte, .uint,
             .s8, .s16, .s32, .s64,
-            .u16, .u32, .u64
+            .u16, .u32, .u64,
+            .usize, .isize
                 => |i| @intCast(i),
             .ptr => |ptr| @intCast(ptr.val orelse return error.BadPtr),
             else => return error.NotANumber,
@@ -78,13 +81,19 @@ pub const Value = union(enum) {
             .u32 => .{ .u32 = @intCast(n) },
             .u64 => .{ .u64 = @intCast(n) },
 
+            .isize => .{ .isize = @intCast(n) },
+            .usize => .{ .usize = @intCast(n) },
+
             else => unreachable, //invalid int type
         };
     }
 
     pub fn is_int(self:Value) bool {
         return switch (self) {
-            inline .int, .byte, .uint, .s8, .s16, .s32, .s64, .u16, .u32, .u64 => true,
+            inline .int, .byte, .uint,
+                .s8, .s16, .s32, .s64,
+                .u16, .u32, .u64,
+                .usize, .isize => true,
             else => false,
         };
     }
@@ -128,6 +137,9 @@ pub const Value = union(enum) {
             .pos  => @panic("TODO: Value.(ptr|pos).dupe(...)"),
 
             .word => |name| .{ .word = name },
+
+            .usize => |us| .{ .usize = us },
+            .isize => |is| .{ .isize = is },
         };
     }
 
@@ -149,7 +161,8 @@ pub const Value = union(enum) {
             .mult => switch (num1) {
                 inline .int, .uint, .byte,
                 .s8, .s16, .s32, .s64,
-                .u16, .u32, .u64 => |v| .mk_int(t,
+                .u16, .u32, .u64,
+                .usize, .isize => |v| .mk_int(t,
                     @TypeOf(v),
                     v * @as(*@TypeOf(v), @ptrCast(@alignCast(num2.get()))).*
                 ),
@@ -159,7 +172,8 @@ pub const Value = union(enum) {
             .add => switch (num1) {
                 inline .int, .uint, .byte,
                 .s8, .s16, .s32, .s64,
-                .u16, .u32, .u64 => |v| .mk_int(t,
+                .u16, .u32, .u64,
+                .usize, .isize => |v| .mk_int(t,
                     @TypeOf(v),
                     v + @as(*@TypeOf(v), @ptrCast(@alignCast(num2.get()))).*
                 ),
@@ -169,7 +183,8 @@ pub const Value = union(enum) {
             .sub => switch (num1) {
                 inline .int, .uint, .byte,
                 .s8, .s16, .s32, .s64,
-                .u16, .u32, .u64 => |v| .mk_int(t,
+                .u16, .u32, .u64,
+                .usize, .isize => |v| .mk_int(t,
                     @TypeOf(v),
                     v - @as(*@TypeOf(v), @ptrCast(@alignCast(num2.get()))).*
                 ),
@@ -179,7 +194,8 @@ pub const Value = union(enum) {
             .div => switch (num1) {
                 inline .int, .uint, .byte,
                 .s8, .s16, .s32, .s64,
-                .u16, .u32, .u64 => |v| .mk_int(t,
+                .u16, .u32, .u64,
+                .usize, .isize => |v| .mk_int(t,
                     @TypeOf(v),
                     @divTrunc(v, @as(*@TypeOf(v), @ptrCast(@alignCast(num2.get()))).*)
                 ),
@@ -320,6 +336,9 @@ pub const Value = union(enum) {
             .u16 => .{ .u16 = bytesAsValue(u16, bytes[1..]).* },
             .u32 => .{ .u32 = bytesAsValue(u32, bytes[1..]).* },
             .u64 => .{ .u64 = bytesAsValue(u64, bytes[1..]).* },
+
+            .usize => .{ .usize = bytesAsValue(usize, bytes[1..]).* },
+            .isize => .{ .isize = bytesAsValue(isize, bytes[1..]).* },
 
             .bool => .{ .bool = bytes[1] == 1 },
 
