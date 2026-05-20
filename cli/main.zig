@@ -105,9 +105,30 @@ pub fn main(init:std.process.Init) !void {
         std.process.abort();
     };
 
+    const enable_vm_leak_test = blk: {
+        const raw = opts.get_define("VMLeakTest") orelse break :blk null;
+        break :blk
+            if (std.mem.eql(u8, "true", raw))
+                true
+            else if (std.mem.eql(u8, "false", raw))
+                false
+            else {
+                std.debug.print(
+                    \\invalid VM opt value: |{s}| ({s})
+                    \\  expected one of the following:
+                    ++ "\n\t- true\n\t- false\n",
+                    .{ raw, "VMLeakTest" }
+                );
+                std.process.abort();
+            };
+    };
+
     var interpreter:gaslVM.Interp = .init(alloc, reader, .{
-        .mode = mode,
         .defines = try opts.dupe_defines(alloc),
+        .common = .{
+            .mode = mode,
+            .vm_leak_test = enable_vm_leak_test,
+        },
     });
     defer interpreter.deinit();
     const res = try interpreter.do();
