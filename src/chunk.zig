@@ -226,6 +226,7 @@ pub const OpCode = enum(u8) {
     // TODO: these
     mutex,   //triggers a lock for VM; locking blocks until unlocked
     remove,  //removes from pointer pool
+    cast,    //casts a pointer to a value
 
 
     print, // TODO: remove (for debugging purposes)
