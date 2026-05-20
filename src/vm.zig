@@ -180,7 +180,10 @@ fn run(self:*VM) InterpResult {
                 if (param_count > std.math.maxInt(u3)) {
                     return .runtime(error.InvalidSyscallParam, null);
                 }
-                const ret = self.syscall(@enumFromInt(self.pop().word), @intCast(param_count)) catch |e| {
+                const ret = self.syscall(
+                    @enumFromInt(self.pop().word),
+                    @intCast(param_count)
+                ) catch |e| {
                     return .runtime(e, null);
                 };
                 self.push(ret);
@@ -191,7 +194,9 @@ fn run(self:*VM) InterpResult {
             //stack manipulation
             .discard => _ = self.pop(),
             .push => {
-                const v:*Value = self.read_const() catch |e| return .runtime(e, "push");
+                const v:*Value = self.read_const() catch |e| {
+                    return .runtime(e, "push");
+                };
                 self.push(v.*);
                 if (options.use_debug_trace)
                     std.debug.print("\x1b[33mCONSTANT:\x1b[0m {any}\n", .{v.*});
@@ -199,7 +204,9 @@ fn run(self:*VM) InterpResult {
             .dupe => self.push((self.stack_top - 1)[0]),
             .hold => self.held.push(self.pop()),
             .hold_off => {
-                const pos = self.pop().cast_Z(usize) catch |e| return .runtime(e, @tagName(code));
+                const pos = self.pop().cast_Z(usize) catch |e| {
+                    return .runtime(e, @tagName(code));
+                };
                 self.held.stack[self.held.top-pos-1] = self.pop();
             },
             inline .take, .take_copy => |which| {
@@ -310,7 +317,9 @@ fn run(self:*VM) InterpResult {
             },
             inline .get, .getH => |which| {
                 const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
-                if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, @tagName(which));
+                if (ptr.val == null) return .runtime(
+                    error.UseOfUninitializedMemory, @tagName(which)
+                );
                 const val = self.vm_alloc.get(ptr.val.?, 1) catch |e| {
                     return .runtime(e, "get");
                 };
@@ -324,7 +333,9 @@ fn run(self:*VM) InterpResult {
                 var ptr = self.pop().ptr;
                 if (ptr.val == null)
                     ptr = self.chunk.?.constants.items[ptr.ident].ptr;
-                const val = self.pop().cast_Z(u8) catch |e| return .runtime(e, "overwrite");
+                const val = self.pop().cast_Z(u8) catch |e| {
+                    return .runtime(e, "overwrite");
+                };
                 self.vm_alloc.put(ptr.val.?, val) catch |e| {
                     return .runtime(e, "overwrite");
                 };
@@ -341,7 +352,8 @@ fn run(self:*VM) InterpResult {
             },
             .free => {
                 const len = self.pop().byte;
-                const ptr:*value.Ptr = &self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
+                const ident = self.pop().ptr.ident;
+                const ptr:*value.Ptr = &self.chunk.?.constants.items[ident].ptr;
                 if (ptr.val == null) return .runtime(error.UseOfUninitializedMemory, "free");
                 self.vm_alloc.free(ptr.val.?, @intCast(len)) catch |e| {
                     return .runtime(e, "free");
