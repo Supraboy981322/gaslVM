@@ -296,6 +296,15 @@ pub const Value = union(enum) {
         };
     }
 
+    // WARNING: only provide basic numbers (no 'ptr' or 'pos')
+    pub fn serialize_fast(self:Value) []u8 {
+        switch (self) {
+            inline .void, .null, .pos, .ptr => unreachable,
+            inline else => |n| return @constCast(std.mem.toBytes(n)[0..]),
+        }
+        unreachable;
+    }
+
     pub fn serialize(self:Value, alloc:std.mem.Allocator) ![]u8 {
         var res:[]u8 = undefined;
 
