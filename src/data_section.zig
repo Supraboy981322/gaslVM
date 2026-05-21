@@ -1,12 +1,14 @@
 const std = @import("std");
 const common = @import("common.zig");
 const Tokenizer = @import("tokenizer.zig");
+const ProcessValue = @import("value.zig").ProcessValue;
 const Keyword = common.Keyword;
 const TokenWord = common.Data.TokenWord;
 
 pub const DataKeywords = enum {
     words,
     macro,
+    load, //constant values loaded by the VM at startup like argv/argc
 };
 
 pub const DataSymbols = enum {
@@ -65,6 +67,13 @@ fn do(self:*Parser) !void {
                         try self.add_macro(try alloc.dupe(u8, value.?[0..value.?.len-1]), name.?);
                         collection = try alloc.alloc([]u8, 0);
                         name = null;
+                    },
+                    .load => {
+                        const what = std.meta.stringToEnum(
+                            ProcessValue, value orelse return error.MissplacedKeyword
+                        ) orelse return error.InvalidLoad;
+                        try self.tokenizer.loads.append(alloc, what);
+                        continue;
                     },
                 }
                 continue;
@@ -126,7 +135,7 @@ fn do(self:*Parser) !void {
 
 pub fn add_words(self:*Parser, collection:[][]u8, name:[]u8) !void {
     var alloc = &self.tokenizer.alloc;
-    try self.tokenizer.words.put(name, blk: {
+    try self.tokenizer.words.map.put(name, blk: {
         var res:[]TokenWord = try alloc.alloc(TokenWord, 0);
         for (collection, 0..) |w, i| {
             var new = try alloc.alloc(TokenWord, res.len+1);

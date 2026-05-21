@@ -11,6 +11,12 @@ pub const Ptr = struct {
     val:?u16, //null for uninitialized
 };
 
+pub const ProcessValue = enum(u3) {
+    argv,
+    argc,
+    env, // TODO:
+};
+
 pub const Value = union(enum) {
     int:i256,
     uint:u256,

@@ -9,6 +9,7 @@ const parseFloat = std.fmt.parseFloat;
 
 const OpCode = chunk.OpCode;
 const Value = @import("value.zig").Value;
+const ProcessValue = @import("value.zig").ProcessValue;
 const Keyword = common.Keyword;
 
 const Tokenizer = @This();
@@ -32,8 +33,9 @@ reader:?*std.Io.Reader = null,
 
 ptrs:std.StringHashMap(u16) = undefined,
 labels:std.StringHashMap(usize) = undefined,
-words:std.StringHashMap([]common.Data.TokenWord) = undefined,
+words:Token.WordMap = .{},
 macros:std.StringHashMap([]u8) = undefined,
+loads:std.ArrayList(ProcessValue) = .empty,
 ident_counter:u16 = 0,
 
 pub fn init(alloc:std.mem.Allocator) Tokenizer {
@@ -64,15 +66,14 @@ pub fn deinit(self:*Tokenizer, opts:DeinitOpts) void {
     while (l_itr.next()) |p| self.alloc.free(p.key_ptr.*);
     self.labels.deinit();
 
-    var w_itr = self.words.iterator();
+    var w_itr = self.words.map.iterator();
     while (w_itr.next()) |s| {
-        for (s.value_ptr.*) |w| {
+        for (s.value_ptr.*) |w|
             self.alloc.free(w.name);
-        }
         self.alloc.free(s.value_ptr.*);
         self.alloc.free(s.key_ptr.*);
     }
-    self.words.deinit();
+    self.words.map.deinit();
 }
 
 pub const TokenizerError = error {
@@ -86,6 +87,7 @@ pub const TokenizerError = error {
     MisplacedSymbol,
     UnknownMacro,
     MissingMacroDef,
+    InvalidLoad,
 } || SeekError
   || std.fmt.ParseIntError
   || std.fmt.ParseFloatError
@@ -371,7 +373,9 @@ pub fn determine(self:*Tokenizer) !?Token {
     //    };
 
     if (hlp.cut(thing, '#')) |word_set| {
-        const collection = self.words.get(word_set[0]) orelse return error.UnknownIdent;
+        const collection = self.words.map.get(word_set[0]) orelse {
+            return error.UnknownIdent;
+        };
         for (collection) |w| if (std.mem.eql(u8, w.name, word_set[1])) {
             return .{
                 .line = self.line_no,
@@ -385,18 +389,12 @@ pub fn determine(self:*Tokenizer) !?Token {
 }
 
 pub fn init_words(self:*Tokenizer) !void {
-    self.words = .init(self.alloc);
-    try self.words.put(try self.alloc.dupe(u8, "SysCall"), blk: {
-        var res:std.ArrayList(common.Data.TokenWord) = .empty;
-        defer res.deinit(self.alloc);
-        for (std.meta.tags(std.posix.system.SYS)) |syscall| {
-            try res.append(self.alloc, .{
-                .name = try self.alloc.dupe(u8, @as([]u8, @ptrCast(@constCast(@tagName(syscall))))[0..@tagName(syscall).len]),
-                .value = @intCast(@intFromEnum(syscall)),
-            });
-        }
-        break :blk try res.toOwnedSlice(self.alloc);
-    });
+    self.words.map = .init(self.alloc);
+    inline for (comptime [_]struct{ []const u8, type }{
+        .{ "SysCall", std.posix.system.SYS },
+        .{ "Proc",    ProcessValue         },
+    }) |set|
+        try self.words.add_set(set[0], set[1]);
 }
 
 pub fn construct_err(self:*Tokenizer, err:TokenizerError) !TokenizeResult.ErrInfo {
