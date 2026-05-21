@@ -19,6 +19,7 @@ pub const assembly = struct {
     pub const Tokenizer = @import("tokenizer.zig");
     pub const Token = @import("token.zig");
     pub const compiler = @import("compiler.zig");
+    pub const TokenizedAsm = Tokenizer.TokenizeResult.Tokenized;
 };
 
 pub const Value = value.Value;
@@ -26,3 +27,5 @@ pub const Ptr = value.Ptr;
 
 pub const Interp = @import("interp.zig");
 pub const InterpOpts = Interp.Opts;
+
+pub const debug = @import("debug.zig");
