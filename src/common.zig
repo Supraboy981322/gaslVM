@@ -45,7 +45,6 @@ pub const CodeByte = union(enum) {
     pub fn is_op(self:CodeByte) bool {
         if (self != .code) return false;
         return switch (@as(OpCode, @enumFromInt(self.code))) {
-            //.true, .false => false,
             else => true,
         };
     }

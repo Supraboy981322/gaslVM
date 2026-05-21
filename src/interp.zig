@@ -75,9 +75,8 @@ pub fn do(self:*Interp) !VM.InterpResult {
     switch (res) {
         .ok => |*ok| {
             defer if (ok.* == .ptr) cancel: {
-                const pos = ok.ptr.val orelse blk: {
-                    break :blk vm.chunk.?.constants.items[ok.ptr.ident].ptr.val;
-                };
+                const pos = ok.ptr.val orelse
+                    vm.chunk.?.constants.items[ok.ptr.ident].ptr.val;
                 vm.vm_alloc.free(pos orelse break :cancel, 1) catch break :cancel;
             };
             return .okay(try ok.dupe(self.alloc, &vm));

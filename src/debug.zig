@@ -13,7 +13,10 @@ pub fn dissassemble_chunk(chunk:*Chunk) void {
 pub fn disassemble_instruction(chunk:*Chunk, i:*usize) void {
     const op:OpCode = @enumFromInt(chunk.code.items[i.*].code);
     defer std.debug.print("\n", .{});
-    std.debug.print("[line {d}] ({d}) {s} ", .{chunk.line_nums[i.*], op, @tagName(op)});
+    std.debug.print(
+       "[line {d}] ({d}) {s} ",
+        .{chunk.line_nums[i.*], op, @tagName(op)}
+    );
     switch (op) {
         .@"return" => {},
         .constant => {
@@ -47,7 +50,8 @@ pub fn print_code_byte(codebyte:CodeByte) void {
     switch (codebyte) {
         .code => |op|
             std.debug.print(
-                "\x1b[35m(op):\x1b[0m {{{d}}} {s}\n", .{op, @tagName(@as(OpCode, @enumFromInt(op)))}
+                "\x1b[35m(op):\x1b[0m {{{d}}} {s}\n",
+                .{op, @tagName(@as(OpCode, @enumFromInt(op)))}
             ),
         inline .long_const, .short_const => |c|
             std.debug.print(
@@ -61,7 +65,8 @@ pub fn print_chunk(chunk:Chunk) void {
         .code => print_code_byte(byte),
         inline .long_const, .short_const => |i|
             std.debug.print(
-                "({s}: {d}): {any}\n", .{@tagName(byte), i, chunk.constants.items[i]}
+                "({s}: {d}): {any}\n",
+                .{@tagName(byte), i, chunk.constants.items[i]}
             ),
     };
 }

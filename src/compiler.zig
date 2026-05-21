@@ -1,18 +1,23 @@
 const std = @import("std");
 const common = @import("common.zig");
+const value = @import("value.zig");
 
 const Token = @import("token.zig");
 const Chunk = @import("chunk.zig").Chunk;
 const CodeByte = common.CodeByte;
 const OpCode = @import("chunk.zig").OpCode;
-const Value = @import("value.zig").Value;
+const Value = value.Value;
 const Tokenizer = @import("tokenizer.zig");
 
 const Tokenized = Tokenizer.TokenizeResult.Tokenized;
 
 const Compiler = @This();
 
-pub fn do(in:Tokenized, alloc:std.mem.Allocator, opts:common.CommonOpts) !Chunk {
+pub fn do(
+    in:Tokenized,
+    alloc:std.mem.Allocator,
+    opts:common.CommonOpts
+) !Chunk {
     var ptrs:std.AutoHashMap(usize, union(enum) {
         pos:?usize,
         val:u16,
@@ -48,7 +53,7 @@ pub fn do(in:Tokenized, alloc:std.mem.Allocator, opts:common.CommonOpts) !Chunk 
                         });
                     continue;
                 }
-                const p:@import("value.zig").Value = switch (ptrs.get(ptr.use.val).?) {
+                const p:value.Value = switch (ptrs.get(ptr.use.val).?) {
                     .pos => |p|
                         .{ .pos =
                             if (p) |pos|
@@ -72,7 +77,7 @@ pub fn do(in:Tokenized, alloc:std.mem.Allocator, opts:common.CommonOpts) !Chunk 
         .pos => |*pos|
             if (pos.* == .ident) {
                 const ident = pos.ident;
-                pos.* = .{ .pos = ptrs.get(ident).?.pos orelse std.debug.panic("{d}", .{ident}) };
+                pos.* = .{ .pos = ptrs.get(ident).?.pos.? };
             },
         else => {},
     };

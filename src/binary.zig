@@ -1,6 +1,8 @@
 const std = @import("std");
 const Chunk = @import("chunk.zig").Chunk;
 
+// TODO: compile to a binary
+
 pub fn mk(chunk:Chunk, writer:*std.Io.Writer) !void {
     try writer.print("\x1bc\x1b[33m{s}\x1b[0m\r\x1b[2K", .{});
     try writer.flush();

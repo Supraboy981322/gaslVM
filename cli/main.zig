@@ -77,7 +77,7 @@ pub fn main(init:std.process.Init) !u8 {
                     return 1;
                 };
                 filename = filename_R.ptr[0..filename_R.len];
-                prog_args[0] = filename.?;
+                prog_args[0] = try alloc.dupe(u8, filename.?);
             },
             .build => @panic("TODO: build to binary"),
             .@"--" => {
