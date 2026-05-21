@@ -33,7 +33,6 @@ pub const Type = union(enum) {
 pub fn free(self:*Token, alloc:std.mem.Allocator) void {
     _ = alloc;
     if (self.value == .literal) switch (self.value.literal) {
-        //.string => |str| alloc.free(str),
         else => {},
     };
 }

@@ -253,10 +253,6 @@ pub fn determine(self:*Tokenizer) !?Token {
     if (std.meta.stringToEnum(std.meta.Tag(Value), thing)) |t| {
         switch (t) {
             .ptr => {
-                //const size_str = try self.take_word();
-                //defer self.alloc.free(size_str);
-                //const size = try parseInt(usize, size_str, 10);
-
                 const name = try self.take_word();
                 errdefer self.alloc.free(name);
 
@@ -365,14 +361,6 @@ pub fn determine(self:*Tokenizer) !?Token {
             }
         };
     }
-
-    //if (thing.len > 1) if (thing[0] == '"' and thing[thing.len-1] == '"')
-    //    return .{
-    //        .line = self.line_no,
-    //        .value = .{ .literal = .{
-    //            .string = try self.alloc.dupe(u8, thing[1..thing.len-1])
-    //        } }
-    //    };
 
     if (hlp.cut(thing, '#')) |word_set| {
         const collection = self.words.map.get(word_set[0]) orelse {

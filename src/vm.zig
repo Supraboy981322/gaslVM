@@ -341,7 +341,7 @@ fn run(self:*VM) InterpResult {
                 };
                 defer self.alloc.free(bytes);
                 self.vm_alloc.putN(ptr.ptr.val.?, bytes) catch |e| {
-                    return .runtime(e, "save");
+                    return .runtime(e, @tagName(code));
                 };
             },
             inline .get, .getH => |which| {

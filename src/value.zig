@@ -110,7 +110,6 @@ pub const Value = union(enum) {
 
     pub fn dupe(self:*Value, _:std.mem.Allocator, vm:*VM) !Value {
         return switch (self.*) {
-            //.string => |str| .{ .string = try alloc.dupe(u8, str) },
 
             .int  => |i| .{ .int  = i },
             .uint => |u| .{ .uint = u },
@@ -261,7 +260,6 @@ pub const Value = union(enum) {
 
     pub fn equals(self:Value, other:Value) bool {
         return switch (self) {
-            //.string => |str| std.mem.eql(u8, str, other.string),
             .void, .null =>
                 std.meta.activeTag(other) == std.meta.activeTag(self),
             .ptr =>
@@ -275,7 +273,6 @@ pub const Value = union(enum) {
 
     pub fn less_than(self:Value, other:Value) bool {
         return switch (self) {
-            //.string,
             .bool, .void, .pos =>
                 unreachable, //less_than must be number
             .null =>
@@ -288,7 +285,6 @@ pub const Value = union(enum) {
     }
     pub fn greater_than(self:Value, other:Value) bool {
         return switch (self) {
-            //.string,
             .bool, .void, .pos =>
                 unreachable, //greater_than must be number
             .null =>
