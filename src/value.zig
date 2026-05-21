@@ -38,7 +38,7 @@ pub const Value = union(enum) {
     bool:bool, // NOTE: there is a dedicated OpCode for this, this is just for the stack
     void,
 
-    pos:union(enum) {
+    pos:union(enum(u1)) {
         ident:u16,
         pos:usize,
     },
