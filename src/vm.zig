@@ -407,6 +407,27 @@ fn run(self:*VM) InterpResult {
                 };
                 ptr.val = null;
             },
+            .string => {
+                const len = self.pop();
+                const l = len.cast_Z(usize) catch |e| {
+                    return .runtime(e, @tagName(code));
+                };
+                const size = len.get_size() + l;
+                const ptr = self.vm_alloc.alloc(@intCast(size)) catch |e| {
+                    return .runtime(e, @tagName(code));
+                };
+                const raw = self.vm_alloc.get_fast(ptr);
+                var off:usize = 0;
+                for (0..l) |i| {
+                    defer off += len.get_size();
+                    const s = self.pop().serialize_fast();
+                    for (s) |b| raw[off+i] = b;
+                }
+                self.push(.{ .ptr = .{
+                    .val = ptr,
+                    .ident = 0,
+                } });
+            },
             inline .ptr_add, .ptr_sub => |op| {
                 var ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
                 const pre = self.pop();
