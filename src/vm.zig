@@ -416,11 +416,12 @@ fn run(self:*VM) InterpResult {
                 const l = len.cast_Z(usize) catch |e| {
                     return .runtime(e, @tagName(code));
                 };
-                const size = len.get_size() + l;
+                const size = len.get_size() + l + 1;
                 const ptr = self.vm_alloc.alloc(@intCast(size)) catch |e| {
                     return .runtime(e, @tagName(code));
                 };
                 const raw = self.vm_alloc.get_fast(ptr);
+                raw[0] = @intFromEnum(std.meta.activeTag(len));
                 var off:usize = 0;
                 for (0..l) |i| {
                     defer off += len.get_size()-1;
