@@ -19,9 +19,6 @@ pub const DataSymbols = enum {
 const Parser = @This();
 
 tokenizer:*Tokenizer,
-collection:[][]u8 = undefined,
-value:?[]u8 = null,
-name:?[]u8 = null,
 
 fn init(tokenizer:*Tokenizer) Parser {
     return .{
@@ -34,22 +31,17 @@ pub fn parse(tokenizer:*Tokenizer) !void {
     try parser.do();
 }
 
-const ParsingAs = enum {
-    collection,
-    macro,
-};
-
 fn do(self:*Parser) !void {
     var alloc = self.tokenizer.alloc;
 
-    self.collection = try alloc.alloc([]u8, 0);
+    var collection:[][]u8 = try alloc.alloc([]u8, 0);
+    defer alloc.free(collection);
 
-    defer {
-        if (self.value) |v| alloc.free(v);
-        if (self.name) |n| alloc.free(n);
-    }
+    var name:?[]u8 = null;
+    var parsing:?enum{ collection, macro } = null;
 
-    var parsing:?ParsingAs = null;
+    var value:?[]u8 = null;
+    defer if (value) |v| alloc.free(v);
 
     while (try self.tokenizer.take_word_or_null()) |word| {
         if (std.meta.stringToEnum(Keyword, word)) |keyword| {
@@ -60,29 +52,29 @@ fn do(self:*Parser) !void {
             }
             continue;
         }
-        if (self.name) |_| {
+        if (name) |_| {
             if (std.meta.stringToEnum(DataKeywords, word)) |keyword| {
                 alloc.free(word);
                 switch (keyword) {
                     .words => {
-                        try self.add_words(self.collection, self.name.?);
-                        alloc.free(self.collection);
-                        self.collection = try alloc.alloc([]u8, 0);
-                        self.name = null;
+                        try self.add_words(collection, name.?);
+                        alloc.free(collection);
+                        collection = try alloc.alloc([]u8, 0);
+                        name = null;
                     },
                     .macro => {
-                        if (self.value == null) return error.MissingMacroDef;
-                        try self.add_macro(try alloc.dupe(u8, self.value.?[0..self.value.?.len-1]), self.name.?);
-                        self.collection = try alloc.alloc([]u8, 0);
-                        self.name = null;
+                        if (value == null) return error.MissingMacroDef;
+                        try self.add_macro(try alloc.dupe(u8, value.?[0..value.?.len-1]), name.?);
+                        collection = try alloc.alloc([]u8, 0);
+                        name = null;
                     },
                     .load => {
                         const what = std.meta.stringToEnum(
-                            ProcessValue, self.name orelse return error.MissplacedKeyword
+                            ProcessValue, name orelse return error.MissplacedKeyword
                         ) orelse return error.InvalidLoad;
                         try self.tokenizer.loads.append(alloc, what);
-                        alloc.free(self.name.?);
-                        self.name = null;
+                        alloc.free(name.?);
+                        name = null;
                         continue;
                     },
                 }
@@ -94,7 +86,7 @@ fn do(self:*Parser) !void {
         if (std.meta.stringToEnum(DataSymbols, word)) |symbol| switch (symbol) {
             inline .@"(", .@"{" => |which| if (parsing == null) {
                 alloc.free(word);
-                if (self.collection.len > 0) return error.MisplacedSymbol;
+                if (collection.len > 0) return error.MisplacedSymbol;
                 parsing = switch (comptime which) {
                     .@"(" => .collection,
                     .@"{" => .macro,
@@ -105,21 +97,39 @@ fn do(self:*Parser) !void {
             inline .@")", .@"}" => |which|
                 if (parsing == (comptime if (which == .@")") .collection else .macro)) {
                     alloc.free(word);
-                    self.name = try self.tokenizer.take_word();
+                    name = try self.tokenizer.take_word();
                     parsing = null;
                     continue;
                 },
         };
 
-        if (parsing) |p| {
-            try self.do_type(p, word);
-            continue;
-        }
+        if (parsing) |p| switch (p) {
+            .collection => {
+                const new = try alloc.alloc([]u8, collection.len+1);
+                for (collection, 0..) |item, i| new[i] = item;
+                new[new.len-1] = word;
+                alloc.free(collection);
+                collection = new;
+                continue;
+            },
+            .macro => {
+                defer alloc.free(word);
+                var new = try alloc.alloc(u8, if (value) |v| v.len+word.len+1 else word.len+1);
+                if (value) |v| {
+                    for (0..v.len) |i| new[i] = v[i];
+                    alloc.free(v);
+                }
+                for (0..word.len) |i| new[(new.len-word.len-1)+i] = word[i];
+                new[new.len-1] = ' ';
+                value = new;
+                continue;
+            },
+        };
 
-        if (self.value) |_|
-            self.name = word
-        else if (self.name == null)
-            self.value = word
+        if (value) |_|
+            name = word
+        else if (name == null)
+            value = word
         else
             return error.InvalidToken;
     }
@@ -145,29 +155,4 @@ pub fn add_words(self:*Parser, collection:[][]u8, name:[]u8) !void {
 
 pub fn add_macro(self:*Parser, value:[]u8, name:[]u8) !void {
     try self.tokenizer.macros.put(name, value);
-}
-
-fn do_type(self:*Parser, p:ParsingAs, word:[]u8) !void {
-    var alloc = self.tokenizer.alloc;
-
-    switch (p) {
-        .collection => {
-            const new = try alloc.alloc([]u8, self.collection.len+1);
-            for (self.collection, 0..) |item, i| new[i] = item;
-            new[new.len-1] = word;
-            alloc.free(self.collection);
-            self.collection = new;
-        },
-        .macro => {
-            defer alloc.free(word);
-            var new = try alloc.alloc(u8, if (self.value) |v| v.len+word.len+1 else word.len+1);
-            if (self.value) |v| {
-                for (0..v.len) |i| new[i] = v[i];
-                alloc.free(v);
-            }
-            for (0..word.len) |i| new[(new.len-word.len-1)+i] = word[i];
-            new[new.len-1] = ' ';
-            self.value = new;
-        },
-    }
 }
