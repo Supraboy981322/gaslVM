@@ -423,9 +423,9 @@ fn run(self:*VM) InterpResult {
                 const raw = self.vm_alloc.get_fast(ptr);
                 var off:usize = 0;
                 for (0..l) |i| {
-                    defer off += len.get_size();
+                    defer off += len.get_size()-1;
                     const s = self.pop().serialize_fast();
-                    for (s) |b| raw[off+i] = b;
+                    for (s) |b| raw[off+(l-i)] = b;
                 }
                 self.push(.{ .ptr = .{
                     .val = ptr,
