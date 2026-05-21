@@ -14,7 +14,7 @@ pub const Ptr = struct {
 pub const ProcessValue = enum(u3) {
     argv,
     argc,
-    env, // TODO:
+    envp, // TODO:
 };
 
 pub const Value = union(enum) {
