@@ -38,9 +38,14 @@ pub fn main(init:std.process.Init) !void {
     var args = init.minimal.args.iterate();
     defer args.deinit();
     _ = args.skip();
+    var prog_args:?[]const []const u8 = null;
+    defer if (prog_args) |stuff| {
+        for (stuff) |arg| alloc.free(arg);
+        alloc.free(stuff);
+    };
     while (args.next()) |a| {
         const match = std.meta.stringToEnum(
-            enum{ run, build }, a
+            enum{ run, build, @"--" }, a
         ) orelse {
             var err:[]const u8 = "invalid arg";
             if (std.mem.startsWith(u8, a, "-D")) if (a.len > 2) {
@@ -72,6 +77,16 @@ pub fn main(init:std.process.Init) !void {
                 filename = filename_R.ptr[0..filename_R.len];
             },
             .build => @panic("TODO: build to binary"),
+            .@"--" => {
+                prog_args = try alloc.alloc([]const u8, 0);
+                while (args.next()) |arg| {
+                    const new = try alloc.alloc([]const u8, prog_args.?.len+1);
+                    for (0..prog_args.?.len) |i| new[i] = prog_args.?[i];
+                    new[new.len-1] = try alloc.dupe(u8, arg);
+                    alloc.free(prog_args.?);
+                    prog_args = new;
+                }
+            },
         }
     }
 
@@ -124,6 +139,7 @@ pub fn main(init:std.process.Init) !void {
     };
 
     var interpreter:gaslVM.Interp = .init(alloc, reader, .{
+        .args = if (prog_args) |stuff| stuff else &.{},
         .defines = try opts.dupe_defines(alloc),
         .common = .{
             .mode = mode,
