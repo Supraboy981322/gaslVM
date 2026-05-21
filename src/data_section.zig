@@ -70,9 +70,11 @@ fn do(self:*Parser) !void {
                     },
                     .load => {
                         const what = std.meta.stringToEnum(
-                            ProcessValue, value orelse return error.MissplacedKeyword
+                            ProcessValue, name orelse return error.MissplacedKeyword
                         ) orelse return error.InvalidLoad;
                         try self.tokenizer.loads.append(alloc, what);
+                        alloc.free(name.?);
+                        name = null;
                         continue;
                     },
                 }
