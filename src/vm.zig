@@ -28,6 +28,7 @@ pub const RuntimeError = error {
     InvalidSyscall,
     NotANumber,
     BadPtr,
+    OutOfBounds,
 } || std.mem.Allocator.Error || Alloc.Error;
 
 const VM = @This();
@@ -206,6 +207,13 @@ fn run(self:*VM) InterpResult {
                     return self.panic("unreachable position")
                 else
                     @breakpoint(), //unreachable position in code
+            .proc => {
+                const what = self.pop().word;
+                const val = self.proc(@enumFromInt(what)) catch |e| {
+                    return .runtime(e, @tagName(code));
+                };
+                self.push(val);
+            },
 
 
             //stack manipulation
@@ -501,4 +509,18 @@ pub fn panic(_:*VM, msg:[]const u8) noreturn {
         \\{s}
         \\ TODO: custom panic
     , .{ msg });
+}
+
+pub fn proc(self:*VM, what:value.ProcessValue) !Value {
+    switch (what) {
+        .argv => {
+            const idx = try self.pop().cast_Z(usize);
+            if (idx >= self.opts.args.len) return error.OutOfBounds;
+            const arg = self.opts.args[idx];
+            self.push(.{ .usize = arg.len });
+            return .{ .usize = @intFromPtr(arg.ptr) };
+        },
+        .argc => return .{ .usize = self.opts.args.len },
+        .envp => return error.NotImplemented,
+    }
 }
