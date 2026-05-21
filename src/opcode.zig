@@ -1,4 +1,11 @@
 pub const OpCode = enum(u8) {
+    // TODO: 
+    //  save 'n' values into memory (pops pointer)
+    overwriteN,
+    // TODO:
+    //  writes 'n' (popped) values into memory and makes a new pointer
+    string,
+
     //used to retrieve process values
     proc,
 
