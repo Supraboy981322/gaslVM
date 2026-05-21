@@ -106,4 +106,15 @@ pub const VM_Allocator = struct {
             if (@mod(count+1, 10) == 0) std.debug.print("\n", .{});
         }
     }
+
+    // WARNING: everything following this does zero checks
+    pub inline fn put_fast(self:*Self, pos:u16, what:u8) void {
+        self.buf[pos] = what;
+    }
+    pub inline fn putN_fast(self:*Self, pos:u16, buf:[]u8) void {
+        inline for (buf, 0..) |b, offset| self.put_fast(pos+offset, b);
+    }
+    pub inline fn get_fast(self:*Self, pos:u16) [*]u8 {
+        return self.buf[pos..].ptr;
+    }
 };
