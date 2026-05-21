@@ -43,6 +43,7 @@ pub fn main(init:std.process.Init) !u8 {
     defer args.deinit();
     _ = args.skip();
     var prog_args:[][]const u8 = try alloc.alloc([]const u8, 1);
+    prog_args[0] = try alloc.alloc(u8, 0);
     defer  {
         for (prog_args) |arg| alloc.free(arg);
         alloc.free(prog_args);
