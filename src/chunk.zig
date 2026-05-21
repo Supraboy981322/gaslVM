@@ -7,6 +7,9 @@ pub const CodeByte = common.CodeByte;
 const Value = value.Value;
 
 pub const OpCode = enum(u8) {
+    //used to retrieve process values
+    proc,
+
     //can be used for assertions
     @"unreachable",
 
