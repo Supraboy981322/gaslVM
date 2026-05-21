@@ -53,6 +53,13 @@ pub const CodeByte = union(enum) {
         const n = @constCast(@tagName(std.meta.activeTag(self)));
         return @as([]u8, @ptrCast(n))[0..n.len];
     }
+
+    pub fn get_const_num(self:CodeByte) u16 {
+        if (self == .code) unreachable;
+        switch (self) {
+            inline else => |v| return @intCast(v),
+        }
+    }
 };
 
 pub const Data = struct {
