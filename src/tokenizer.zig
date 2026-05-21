@@ -139,12 +139,12 @@ pub const TokenizeResult = union(enum) {
     pub const Tokenized = struct {
         positions:[]usize,
         tokens:[]Token,
+        pub fn deinit_alloc(self:*Tokenized, alloc:std.mem.Allocator) void {
+            alloc.free(self.positions);
+            alloc.free(self.tokens);
+        }
         pub fn deinit(self:*Tokenized, tokenizer:*Tokenizer) void {
-            tokenizer.alloc.free(self.positions);
-            for (self.tokens) |tok| if (tok.value == .literal) switch (tok.value.literal) {
-                else => {},
-            };
-            tokenizer.alloc.free(self.tokens);
+            self.deinit_alloc(tokenizer.alloc);
         }
     };
 

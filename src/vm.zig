@@ -345,7 +345,12 @@ fn run(self:*VM) InterpResult {
                 };
             },
             inline .get, .getH => |which| {
-                const ptr = self.chunk.?.constants.items[self.pop().ptr.ident].ptr;
+                const ptr = blk: {
+                    var foo = self.pop();
+                    if (foo.ptr.val != null) break :blk foo.ptr;
+                    foo = self.chunk.?.constants.items[foo.ptr.ident];
+                    break :blk foo.ptr;
+                };
                 if (ptr.val == null) return .runtime(
                     error.UseOfUninitializedMemory, @tagName(which)
                 );
