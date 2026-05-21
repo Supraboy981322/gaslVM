@@ -55,6 +55,7 @@ pub fn build(b: *std.Build) !void {
     const mod = try module(b, opts, target, optimize, mod_root, common);
     try tests(b, opts, target, optimize, mod_root, common);
     try cli(b, opts, target, optimize, mod, common);
+    try ref_lang(b, opts, target, optimize, mod, common);
 }
 
 fn cli(
@@ -132,4 +133,40 @@ fn tests(
     run_test.has_side_effects = true;
     const test_step = b.step("test", "run the gaslVM tests");
     test_step.dependOn(&run_test.step);
+}
+
+pub fn ref_lang(
+    b:*std.Build,
+    opts:*std.Build.Step.Options,
+    target:std.Build.ResolvedTarget,
+    optimize:?std.builtin.OptimizeMode,
+    mod:*std.Build.Module,
+    common:*std.Build.Module,
+) !void {
+    const cli_root = b.option(
+        []const u8,
+        "ref_lang_root",
+        "override reference language root dir"
+    ) orelse "reference_language";
+
+    const bin = b.addExecutable(.{
+        .name = "gaslVM_ref-lang",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(b.pathJoin(&.{ cli_root, "main.zig"})),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    bin.root_module.addImport("gaslVM", mod);
+    bin.root_module.addImport("common", common);
+
+    bin.root_module.addOptions("options", opts);
+    b.installArtifact(bin);
+
+    const run_bin = b.addRunArtifact(bin);
+    if (b.args) |args| {
+        run_bin.addArgs(args);
+    }
+    const run_step = b.step("run_lang", "run the program");
+    run_step.dependOn(&run_bin.step);
 }
