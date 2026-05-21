@@ -6,7 +6,7 @@ const gaslVM = @import("gaslVM");
 //  this is purely for testing; it doesn't do much.
 //    it's mostly just a wrapper to test scripts
 
-pub fn main(init:std.process.Init) !void {
+pub fn main(init:std.process.Init) !u8 {
     const alloc = init.gpa;
 
     // TODO: swap run and build as defaults
@@ -67,16 +67,14 @@ pub fn main(init:std.process.Init) !void {
                 err = "no 'DEFINE' provided to '-D' arg";
             };
             std.debug.print("{s}: {s}\n", .{err, a});
-            std.process.abort();
-            unreachable;
+            return 1;
         };
         switch (match) {
             .run => {
                 opts.run = true;
                 const filename_R = args.next() orelse {
                     std.debug.print("missing arg value: {s}\n", .{a});
-                    std.process.abort();
-                    unreachable;
+                    return 1;
                 };
                 filename = filename_R.ptr[0..filename_R.len];
                 prog_args[0] = filename.?;
@@ -96,13 +94,12 @@ pub fn main(init:std.process.Init) !void {
 
     if (filename == null){
         std.debug.print("missing filename\n", .{});
-        std.process.abort();
+        return 1;
     }
 
     var file = std.Io.Dir.cwd().openFile(init.io, filename orelse unreachable, .{}) catch |e| {
         std.debug.print("failed to open file: {t}\n", .{e});
-        std.process.abort();
-        unreachable;
+        return 1;
     };
     defer file.close(init.io);
 
@@ -121,7 +118,7 @@ pub fn main(init:std.process.Init) !void {
         ++ "\n", .{opts.get_define("mode").?});
         for (std.meta.tags(gaslVM.Mode)) |mode|
             std.debug.print("\t- {s}\n", .{@tagName(mode)});
-        std.process.abort();
+        return 1;
     };
 
     const enable_vm_leak_test = blk: {
@@ -138,7 +135,7 @@ pub fn main(init:std.process.Init) !void {
                     ++ "\n\t- true\n\t- false\n",
                     .{ raw, "VMLeakTest" }
                 );
-                std.process.abort();
+                return 1;
             };
     };
 
@@ -186,9 +183,10 @@ pub fn main(init:std.process.Init) !void {
             },
             .ok => unreachable,
         }
-        std.process.abort();
+        return 1;
     }
 
     if (mode != .silent)
         std.debug.print("{any}\n", .{res.ok});
+    return 0;
 }
