@@ -1,3 +1,7 @@
+// TODO: 
+//  I fear I have gone the wrong direction here,
+//    a large refactor may be nice
+
 const std = @import("std");
 const debug = @import("debug.zig");
 const memory = @import("memory.zig");
