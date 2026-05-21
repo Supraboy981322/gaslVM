@@ -74,6 +74,8 @@ pub fn deinit(self:*Tokenizer, opts:DeinitOpts) void {
         self.alloc.free(s.key_ptr.*);
     }
     self.words.map.deinit();
+
+    self.loads.deinit(self.alloc);
 }
 
 pub const TokenizerError = error {
