@@ -2,6 +2,10 @@ const std = @import("std");
 const hlp = @import("common").helpers;
 const gaslVM = @import("gaslVM");
 
+// WARNING:
+//  this is purely for testing; it doesn't do much.
+//    it's mostly just a wrapper to test scripts
+
 pub fn main(init:std.process.Init) !void {
     const alloc = init.gpa;
 
