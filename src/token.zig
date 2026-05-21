@@ -8,7 +8,7 @@ pub const Value = @import("value.zig").Value;
 const Token = @This();
 
 value:Type,
-line:usize,
+line:usize = 0,
 
 pub const Type = union(enum) {
     literal:Value,
