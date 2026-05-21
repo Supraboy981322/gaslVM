@@ -14,7 +14,31 @@ push f32 5.6
   return
 ```
 
-Making a Linux syscall (this constructs a string (`aaaaaaaaaa`) and prints it to stdout):
+printing to stdout (`foo` followed by a newline) (note that this leaks 4 bytes of memory (plus a type identifier byte))
+```asm
+data
+  1 no_leak_test setting
+end
+
+push byte 4   ;length of string (for the syscall)
+push byte 102 ;'f'
+push byte 111 ;'o'
+push byte 111 ;'o'
+push byte 10  ;newline
+push byte 4   ;length of string (for 'string' instruction)
+  string
+  getH        ;get the host's pointer (for the syscall)
+push usize 1  ;stdout
+push SysCall#write
+push byte 3   ;number of parameters (length, string, then fd)
+  syscall     ;actually make the syscall
+
+;end the interpreter
+push void
+  stop
+```
+
+constructing a string (`aaaaaaaaaa`) and printing it to stderr:
 ```asm
 ptr str
 push $str
@@ -56,7 +80,7 @@ push @loop
 
 push $idx get  ;string length 
 push $str getH ;get host pointer
-push 1         ;stdout
+push 2         ;stderr
 push SysCall#write
 push byte 3
 syscall
