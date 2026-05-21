@@ -42,16 +42,23 @@ pub const WordMap = struct {
     map:std.StringHashMap([]common.Data.TokenWord) = undefined,
 
     pub fn add_set(self:*WordMap, name:[]const u8, T:type) !void {
-        try self.map.put(try self.map.allocator.dupe(u8, name), blk: {
-            var res:std.ArrayList(common.Data.TokenWord) = .empty;
-            defer res.deinit(self.map.allocator);
-            for (std.meta.tags(T)) |word| {
-                try res.append(self.map.allocator, .{
-                    .name = try self.map.allocator.dupe(u8, @as([]u8, @ptrCast(@constCast(@tagName(word))))[0..@tagName(word).len]),
-                    .value = @intCast(@intFromEnum(word)),
-                });
-            }
-            break :blk try res.toOwnedSlice(self.map.allocator);
-        });
+        var res:std.ArrayList(common.Data.TokenWord) = .empty;
+        defer res.deinit(self.map.allocator);
+        for (std.meta.tags(T)) |word| {
+            const word_name = try self.map.allocator.dupe(u8,
+                //effectively std.mem.absorbSentinel; but without relying on the
+                //  standard library (since it will probably get removed at some point)
+                //    and for a mutable slice of bytes
+                @as([]u8, @ptrCast(@constCast(@tagName(word))))[0..@tagName(word).len]
+            );
+
+            try res.append(self.map.allocator, .{
+                .name = word_name,
+                .value = @intCast(@intFromEnum(word)),
+            });
+        }
+        const list = try res.toOwnedSlice(self.map.allocator);
+        const duped_name = try self.map.allocator.dupe(u8, name);
+        try self.map.put(duped_name, list);
     }
 };
