@@ -34,16 +34,18 @@ pub const ParseReturn = union(enum) {
         }
     }
 
-    pub fn fail(err:ParseError, state:State, chunk:?[]const u8) ParseReturn {
+    pub fn fail(err:ParseError, state:*State, chunk:?[]const u8) ParseReturn {
+        state.errored = true;
         return .{
             .err = .{
                 .err = err,
-                .state = state,
+                .state = state.*,
                 .chunk = chunk
             }
         };
     }
-    pub fn done(result:Ok) ParseReturn {
+    pub fn done(result:Ok, state:*State) ParseReturn {
+        state.deinit();
         return .{ .okay = result };
     }
 
@@ -71,7 +73,6 @@ pub fn do(alloc:std.mem.Allocator, reader:*std.Io.Reader) !ParseReturn {
     defer data.deinit();
 
     var state:State = .init(alloc);
-    defer state.deinit();
 
     while (state.next(reader)) |b| {
         if (std.ascii.isWhitespace(b)) switch (try state.whitespace()) {
@@ -79,13 +80,13 @@ pub fn do(alloc:std.mem.Allocator, reader:*std.Io.Reader) !ParseReturn {
                 if (in) |i| try res.append(alloc, i);
                 continue;
             },
-            .err => |e| return .fail(e[0], state, e[1]),
+            .err => |e| return .fail(e[0], &state, e[1]),
         };
         if (b == ';') {
             while (reader.takeByte()) |c| {
                 if (c == '\n') break;
             } else |err| return switch (err) {
-                error.EndOfStream => .fail(error.UnexpectedEOF, state, null),
+                error.EndOfStream => .fail(error.UnexpectedEOF, &state, null),
                 inline else => |e| e,
             };
             continue;
@@ -96,7 +97,7 @@ pub fn do(alloc:std.mem.Allocator, reader:*std.Io.Reader) !ParseReturn {
         inline else => |e| return e,
     }
 
-    return .done(try res.toOwnedSlice(alloc));
+    return .done(try res.toOwnedSlice(alloc), &state);
 }
 
 pub const State = struct {
@@ -104,6 +105,8 @@ pub const State = struct {
     line_start:usize = 0,
     pos:usize = 0,
     line:std.ArrayList(u8) = .empty,
+
+    errored:bool = false,
 
     mem:std.ArrayList(u8) = .empty,
     alloc:std.mem.Allocator,
@@ -114,6 +117,7 @@ pub const State = struct {
 
     pub fn deinit(self:*State) void {
         self.mem.deinit(self.alloc);
+        if (!self.errored) self.line.deinit(self.alloc);
     }
 
     pub fn next(self:*State, reader:*std.Io.Reader) !u8 {
@@ -154,6 +158,7 @@ pub const State = struct {
         if (self.mem.items.len == 0) return .done(null);
 
         const chunk = try self.mem.toOwnedSlice(self.alloc);
+        errdefer self.alloc.free(chunk);
 
         if (stringToEnum(VM.defaults.instruction_set.Instruction, chunk)) |in| {
             self.alloc.free(chunk);
