@@ -4,7 +4,7 @@ move r0       ;pops ptr from stack and places into r0
 
 push 97       ;'a'
 push 1        ;width of num in bytes
-put r0        ;puts value ('a') into ptr in r0
+store r0        ;puts value ('a') into ptr in r0
 
 push 1        ;len of string
 move r1       ;move len of string to r1
