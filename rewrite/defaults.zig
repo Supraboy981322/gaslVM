@@ -115,6 +115,11 @@ pub const instruction_set = struct {
         pub fn pushR(self:*VM) NoError!void {
             self.push(self.getRegister().*);
         }
+
+        //13
+        pub fn jmp(self:*VM) NoError!void {
+            self.ip = self.code.ptr + self.next();
+        }
     };
 
     pub const Enum = struct {

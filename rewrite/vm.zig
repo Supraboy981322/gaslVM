@@ -3,6 +3,7 @@ const std = @import("std");
 const VM = @This();
 
 registers:Registers,
+code:[]Word,
 ip:[*]Word = undefined,
 instructions:InstructionSet,
 
@@ -63,6 +64,7 @@ pub fn init(alloc:std.mem.Allocator, opts:InitOpts) !VM {
         .alloc = alloc,
         .instructions = if (opts.instructions) |i| i else defaults.instruction_set.slice,
         .registers = .{},
+        .code = try codeFromEnumSlice(alloc, &.{.op(.jam)}),
     };
 }
 pub fn deinit(self:*VM) void {
@@ -91,7 +93,8 @@ pub fn push(self:*VM, v:Word) void {
 }
 
 pub fn do(self:*VM, code:[]Word) !void {
-    self.ip = code.ptr;
+    self.code = code;
+    self.ip = self.code.ptr;
     self.stack_top = self.stack.ptr;
     while (true) try self.instructions[self.next()](self);
 }
