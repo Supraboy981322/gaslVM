@@ -120,6 +120,18 @@ pub const instruction_set = struct {
         pub fn jump(self:*VM) NoError!void {
             self.ip = self.code.ptr + self.next();
         }
+
+        pub fn equals(self:*VM) NoError!void {
+            self.push(@intFromBool(self.getRegister().* == self.getRegister().*));
+        }
+
+        //14
+        pub fn jump_if(self:*VM) NoError!void {
+            if (self.getRegister().* == 1)
+                try jump(self)
+            else
+                _ = self.next();
+        }
     };
 
     pub const Enum = struct {

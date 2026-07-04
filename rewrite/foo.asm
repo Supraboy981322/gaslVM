@@ -1,4 +1,16 @@
+push 0
+move rf
 again:
+
+  push 1
+  move r0
+  add rf r0
+
+  push 10
+  move r0
+  equals r0 rf
+  move r0
+  jump_if r0 :end
 
   push 2        ;len of ptr in bytes
   alloc         ;allocates ptr and pushes to stack
@@ -25,6 +37,7 @@ again:
   push 2        ;len (in bytes) of ptr
   free r0       ;frees ptr in r0
 
-jump :again
+jump :again     ;continue loop
 
-jam           ;kills the VM (with err)
+end:
+jam             ;kills the VM (with err)
