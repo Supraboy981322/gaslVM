@@ -93,6 +93,7 @@ pub fn push(self:*VM, v:Word) void {
 }
 
 pub fn do(self:*VM, code:[]Word) !void {
+    self.alloc.free(self.code);
     self.code = code;
     self.ip = self.code.ptr;
     self.stack_top = self.stack.ptr;

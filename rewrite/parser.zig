@@ -25,7 +25,7 @@ pub const ParseReturn = union(enum) {
 
     pub const Ok = []Instruction;
     pub const Error = struct {
-        state:State,
+        state:*State,
         chunk:?[]const u8,
         err:ParseError,
     };
@@ -45,7 +45,7 @@ pub const ParseReturn = union(enum) {
         return .{
             .err = .{
                 .err = err,
-                .state = state.*,
+                .state = state,
                 .chunk = chunk
             }
         };
@@ -92,6 +92,7 @@ pub fn do(alloc:std.mem.Allocator, reader:*std.Io.Reader) !ParseReturn {
             if (state.mem.items.len > 0) {
                 const name = try state.mem.toOwnedSlice(alloc);
                 if (state.positions.getPtr(name)) |position| {
+                    defer alloc.free(name);
                     if (position.* == .pos)
                         return .fail(error.DuplicateLabel, &state, name);
                     const pos = res.items.len;
@@ -122,10 +123,12 @@ pub fn do(alloc:std.mem.Allocator, reader:*std.Io.Reader) !ParseReturn {
                 alloc.free(position.*.todo);
                 position.*.todo = new;
                 try res.append(alloc, .num(maxInt(Word)));
-            } else
-                try state.positions.put(name.items, .{
+            } else {
+                try state.positions.put(try name.toOwnedSlice(alloc), .{
                     .todo = try alloc.dupe(usize, &[_]usize{res.items.len})
                 });
+                try res.append(alloc, .num(maxInt(Word)));
+            }
             continue;
         }
         if (b == ';') {
@@ -141,6 +144,13 @@ pub fn do(alloc:std.mem.Allocator, reader:*std.Io.Reader) !ParseReturn {
     } else |err| switch (err) {
         error.EndOfStream => {},
         inline else => |e| return e,
+    }
+
+    {
+        var itr = state.positions.iterator();
+        while (itr.next()) |pos| if (pos.value_ptr.* == .todo) {
+            return .fail(error.UnknownLabel, &state, null);
+        };
     }
 
     return .done(try res.toOwnedSlice(alloc), &state);
