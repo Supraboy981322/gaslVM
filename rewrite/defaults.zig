@@ -22,42 +22,42 @@ pub const instruction_set = struct {
 
     pub const funcs = struct {
         //0
-        pub fn move(self:*VM) NoError!void {
-            self.getRegister().* = self.pop();
+        pub fn move(vm:*VM) NoError!void {
+            vm.getRegister().* = vm.pop();
         }
 
         //1
-        pub fn add(self:*VM) NoError!void {
-            self.getRegister().* +%= self.getRegister().*;
+        pub fn add(vm:*VM) NoError!void {
+            vm.getRegister().* +%= vm.getRegister().*;
         }
 
         //2
-        pub fn sub(self:*VM) NoError!void {
-            self.getRegister().* -%= self.getRegister().*;
+        pub fn sub(vm:*VM) NoError!void {
+            vm.getRegister().* -%= vm.getRegister().*;
         }
 
         //3
-        pub fn div(self:*VM) error{DivideByZero}!void {
-            const left = self.getRegister();
-            const right = self.getRegister();
+        pub fn div(vm:*VM) error{DivideByZero}!void {
+            const left = vm.getRegister();
+            const right = vm.getRegister();
             if (left.* == 0 or right.* == 0) return error.DivideByZero;
             left.* /= right.*;
         }
 
         //4
-        pub fn mult(self:*VM) NoError!void {
-            self.getRegister().* *%= self.getRegister().*;
+        pub fn mult(vm:*VM) NoError!void {
+            vm.getRegister().* *%= vm.getRegister().*;
         }
 
         //5
-        pub fn push(self:*VM) NoError!void {
-            self.push(self.next());
+        pub fn push(vm:*VM) NoError!void {
+            vm.push(vm.next());
         }
 
         //6
-        pub fn print(self:*VM) NoError!void {
-            const ptr:[*]u8 = @ptrFromInt(self.getRegister().*);
-            const len:Word = self.getRegister().*;
+        pub fn print(vm:*VM) NoError!void {
+            const ptr:[*]u8 = @ptrFromInt(vm.getRegister().*);
+            const len:Word = vm.getRegister().*;
             std.debug.print("{s}", .{ptr[0..len]});
         }
 
@@ -67,27 +67,27 @@ pub const instruction_set = struct {
         }
 
         //8
-        pub fn alloc(self:*VM) error{OutOfMemory}!void {
-            const len = self.pop();
+        pub fn alloc(vm:*VM) error{OutOfMemory}!void {
+            const len = vm.pop();
             // TODO: probably a better way to do this
-            const ptr:[*]u8 = (try self.alloc.alloc(u8, len)).ptr;
-            self.push(@intFromPtr(ptr));
+            const ptr:[*]u8 = (try vm.alloc.alloc(u8, len)).ptr;
+            vm.push(@intFromPtr(ptr));
         }
 
         //9
-        pub fn free(self:*VM) NoError!void {
-            const ptr = self.getRegister().*;
-            const len = self.pop();
+        pub fn free(vm:*VM) NoError!void {
+            const ptr = vm.getRegister().*;
+            const len = vm.pop();
             const s:[*]u8 = @ptrFromInt(ptr);
-            self.alloc.free(s[0..len]);
+            vm.alloc.free(s[0..len]);
         }
 
         //10
         // TODO: there is 100% a MUCH faster way to do this
-        pub fn store(self:*VM) NoError!void {
-            var width = self.pop();
-            var ptr:[*]u8 = @ptrFromInt(self.getRegister().*);
-            var v = self.pop();
+        pub fn store(vm:*VM) NoError!void {
+            var width = vm.pop();
+            var ptr:[*]u8 = @ptrFromInt(vm.getRegister().*);
+            var v = vm.pop();
             while (width > 0) : ({
                 width -= 1;
                 ptr += 1;
@@ -99,78 +99,78 @@ pub const instruction_set = struct {
 
         //11
         // TODO: there is 100% a MUCH faster way to do this
-        pub fn load(self:*VM) NoError!void {
-            var width = self.pop();
-            var ptr:[*]u8 = @ptrFromInt(self.getRegister().*);
-            var v = self.pop();
+        pub fn load(vm:*VM) NoError!void {
+            var width = vm.pop();
+            var ptr:[*]u8 = @ptrFromInt(vm.getRegister().*);
+            var v = vm.pop();
             while (width > 0) : ({
                 width -= 1;
                 ptr += 1;
             })
                 v = (v << 8) | ptr[0];
-            self.push(v);
+            vm.push(v);
         }
 
         //12
-        pub fn pushR(self:*VM) NoError!void {
-            self.push(self.getRegister().*);
+        pub fn pushR(vm:*VM) NoError!void {
+            vm.push(vm.getRegister().*);
         }
 
         //13
-        pub fn jump(self:*VM) NoError!void {
-            self.ip = self.code.ptr + self.next();
+        pub fn jump(vm:*VM) NoError!void {
+            vm.ip = vm.code.ptr + vm.next();
         }
 
         //14
-        pub fn equals(self:*VM) NoError!void {
-            self.push(@intFromBool(self.getRegister().* == self.getRegister().*));
+        pub fn equals(vm:*VM) NoError!void {
+            vm.push(@intFromBool(vm.getRegister().* == vm.getRegister().*));
         }
 
         //15
-        pub fn jump_if(self:*VM) NoError!void {
-            if (self.getRegBool())
-                try jump(self)
+        pub fn jump_if(vm:*VM) NoError!void {
+            if (vm.getRegBool())
+                try jump(vm)
             else
-                _ = self.next();
+                _ = vm.next();
         }
 
         //16
-        pub fn greater(self:*VM) NoError!void {
-            const cond = self.getRegister().* > self.getRegister().*;
-            self.push(if (cond) 1 else 0);
+        pub fn greater(vm:*VM) NoError!void {
+            const cond = vm.getRegister().* > vm.getRegister().*;
+            vm.push(if (cond) 1 else 0);
         }
         //17
-        pub fn less(self:*VM) NoError!void {
-            const cond = self.getRegister().* < self.getRegister().*;
-            self.push(if (cond) 1 else 0);
+        pub fn less(vm:*VM) NoError!void {
+            const cond = vm.getRegister().* < vm.getRegister().*;
+            vm.push(if (cond) 1 else 0);
         }
         //18
-        pub fn not(self:*VM) NoError!void {
-            self.push(if (self.getRegBool()) 0 else 1);
+        pub fn not(vm:*VM) NoError!void {
+            vm.push(if (vm.getRegBool()) 0 else 1);
         }
         //19
-        pub fn @"or"(self:*VM) NoError!void {
-            const one = self.getRegBool();
-            const two = self.getRegBool();
-            self.push(if (one or two) 1 else 0);
+        pub fn @"or"(vm:*VM) NoError!void {
+            const one = vm.getRegBool();
+            const two = vm.getRegBool();
+            vm.push(if (one or two) 1 else 0);
         }
         //20
-        pub fn @"and"(self:*VM) NoError!void {
-            const one = self.getRegBool();
-            const two = self.getRegBool();
-            self.push(if (one and two) 1 else 0);
+        pub fn @"and"(vm:*VM) NoError!void {
+            const one = vm.getRegBool();
+            const two = vm.getRegBool();
+            vm.push(if (one and two) 1 else 0);
         }
         //21
-        pub fn xor(self:*VM) NoError!void {
-            const one = self.getRegBool();
-            const two = self.getRegBool();
-            self.push(if ((one and !two) or (!one and two)) 1 else 0);
+        pub fn xor(vm:*VM) NoError!void {
+            const one = vm.getRegBool();
+            const two = vm.getRegBool();
+            vm.push(if ((one and !two) or (!one and two)) 1 else 0);
         }
         //22
-        pub fn nor(self:*VM) NoError!void {
-            const one = self.getRegBool();
-            const two = self.getRegBool();
-            self.push(if (one and two) 0 else 1);
+        pub fn nor(vm:*VM) NoError!void {
+            const one = vm.getRegBool();
+            const two = vm.getRegBool();
+            vm.push(if (one and two) 0 else 1);
         }
     };
 
