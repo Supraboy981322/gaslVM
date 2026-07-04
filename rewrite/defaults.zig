@@ -84,7 +84,7 @@ pub const instruction_set = struct {
 
         //10
         // TODO: there is 100% a MUCH faster way to do this
-        pub fn put(self:*VM) NoError!void {
+        pub fn store(self:*VM) NoError!void {
             var width = self.pop();
             var ptr:[*]u8 = @ptrFromInt(self.getRegister().*);
             var v = self.pop();
@@ -99,7 +99,7 @@ pub const instruction_set = struct {
 
         //11
         // TODO: there is 100% a MUCH faster way to do this
-        pub fn get(self:*VM) NoError!void {
+        pub fn load(self:*VM) NoError!void {
             var width = self.pop();
             var ptr:[*]u8 = @ptrFromInt(self.getRegister().*);
             var v = self.pop();
