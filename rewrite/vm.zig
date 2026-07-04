@@ -93,8 +93,5 @@ pub fn push(self:*VM, v:Word) void {
 pub fn do(self:*VM, code:[]Word) !void {
     self.ip = code.ptr;
     self.stack_top = self.stack.ptr;
-    while (true) {
-        const instruction = self.next();
-        try self.instructions[instruction](self);
-    }
+    while (true) try self.instructions[self.next()](self);
 }
