@@ -92,6 +92,10 @@ pub fn push(self:*VM, v:Word) void {
     self.stack_top += 1;
 }
 
+pub fn getRegBool(self:*VM) bool {
+    return self.getRegister().* != 0;
+}
+
 pub fn do(self:*VM, code:[]Word) !void {
     self.alloc.free(self.code);
     self.code = code;

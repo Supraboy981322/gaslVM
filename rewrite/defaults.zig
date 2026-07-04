@@ -121,16 +121,56 @@ pub const instruction_set = struct {
             self.ip = self.code.ptr + self.next();
         }
 
+        //14
         pub fn equals(self:*VM) NoError!void {
             self.push(@intFromBool(self.getRegister().* == self.getRegister().*));
         }
 
-        //14
+        //15
         pub fn jump_if(self:*VM) NoError!void {
-            if (self.getRegister().* == 1)
+            if (self.getRegBool())
                 try jump(self)
             else
                 _ = self.next();
+        }
+
+        //16
+        pub fn greater(self:*VM) NoError!void {
+            const cond = self.getRegister().* > self.getRegister().*;
+            self.push(if (cond) 1 else 0);
+        }
+        //17
+        pub fn less(self:*VM) NoError!void {
+            const cond = self.getRegister().* < self.getRegister().*;
+            self.push(if (cond) 1 else 0);
+        }
+        //18
+        pub fn not(self:*VM) NoError!void {
+            self.push(if (self.getRegBool()) 0 else 1);
+        }
+        //19
+        pub fn @"or"(self:*VM) NoError!void {
+            const one = self.getRegBool();
+            const two = self.getRegBool();
+            self.push(if (one or two) 1 else 0);
+        }
+        //20
+        pub fn @"and"(self:*VM) NoError!void {
+            const one = self.getRegBool();
+            const two = self.getRegBool();
+            self.push(if (one and two) 1 else 0);
+        }
+        //21
+        pub fn xor(self:*VM) NoError!void {
+            const one = self.getRegBool();
+            const two = self.getRegBool();
+            self.push(if ((one and !two) or (!one and two)) 1 else 0);
+        }
+        //22
+        pub fn nor(self:*VM) NoError!void {
+            const one = self.getRegBool();
+            const two = self.getRegBool();
+            self.push(if (one and two) 0 else 1);
         }
     };
 
