@@ -63,6 +63,42 @@ pub const ParseReturn = union(enum) {
     }
 };
 
+pub fn do(alloc:std.mem.Allocator, reader:*std.Io.Reader) !ParseReturn {
+    var res:std.ArrayList(Instruction) = .empty;
+    defer res.deinit(alloc);
+
+    var data:Data = try .init(alloc);
+    defer data.deinit();
+
+    var state:State = .init(alloc);
+    defer state.deinit();
+
+    while (state.next(reader)) |b| {
+        if (std.ascii.isWhitespace(b)) switch (try state.whitespace()) {
+            .ok => |in| {
+                if (in) |i| try res.append(alloc, i);
+                continue;
+            },
+            .err => |e| return .fail(e[0], state, e[1]),
+        };
+        if (b == ';') {
+            while (reader.takeByte()) |c| {
+                if (c == '\n') break;
+            } else |err| return switch (err) {
+                error.EndOfStream => .fail(error.UnexpectedEOF, state, null),
+                inline else => |e| e,
+            };
+            continue;
+        }
+        try state.mem.append(alloc, b);
+    } else |err| switch (err) {
+        error.EndOfStream => {},
+        inline else => |e| return e,
+    }
+
+    return .done(try res.toOwnedSlice(alloc));
+}
+
 pub const State = struct {
     line_num:usize = 0,
     line_start:usize = 0,
@@ -154,44 +190,3 @@ pub const State = struct {
         return .fail(error.InvalidToken, chunk);
     }
 };
-
-pub fn do(alloc:std.mem.Allocator, reader:*std.Io.Reader) !ParseReturn {
-    var res:std.ArrayList(Instruction) = .empty;
-    defer res.deinit(alloc);
-
-    var data:Data = try .init(alloc);
-    defer data.deinit();
-
-    var state:State = .init(alloc);
-    defer state.deinit();
-
-    while (state.next(reader)) |b| {
-        if (std.ascii.isWhitespace(b)) switch (try state.whitespace()) {
-            .ok => |in| {
-                if (in) |i| try res.append(alloc, i);
-                continue;
-            },
-            .err => |e| return .fail(e[0], state, e[1]),
-        };
-        if (b == ';') {
-            while (reader.takeByte()) |c| {
-                if (c == '\n') break;
-            } else |err| return switch (err) {
-                error.EndOfStream => .fail(error.UnexpectedEOF, state, null),
-                inline else => |e| e,
-            };
-            continue;
-        }
-        try state.mem.append(alloc, b);
-    } else |err| switch (err) {
-        error.EndOfStream => {},
-        inline else => |e| return e,
-    }
-
-    return .done(try res.toOwnedSlice(alloc));
-}
-
-pub fn isNum(chunk:[]const u8) bool {
-    for (chunk) |b| if (!isDigit(b)) return false;
-    return true;
-}
