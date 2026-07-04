@@ -7,12 +7,23 @@ pub fn main(init:std.process.Init) !u8 {
     defer vm.deinit();
 
     var reader:std.Io.Reader = .fixed(@embedFile("foo.asm"));
-    if ((try parser.do(init.gpa, &reader)).unwrap()) |parsed| {
-        defer init.gpa.free(parsed);
-        const code = try VM.codeFromEnumSlice(init.gpa, parsed);
-        defer init.gpa.free(code);
-        try vm.do(code);
-    } else |err|
-        std.debug.print("{t}\n", .{err});
+    const parsed = try parser.do(init.gpa, &reader);
+    if (parsed.failed()) |info| {
+        std.debug.print("parse error: {t}\n\t", .{info.err});
+        if (info.chunk) |chunk| {
+            std.debug.print("here -> |{s}| ", .{chunk});
+            init.gpa.free(chunk);
+        }
+        std.debug.print("(line {d})\n", .{info.state.line_num});
+        return 1;
+    }
+    const tokens = parsed.ok().?;
+    defer init.gpa.free(tokens);
+
+    const code = try VM.codeFromEnumSlice(init.gpa, tokens);
+    defer init.gpa.free(code);
+
+    try vm.do(code);
+
     return 0;
 }
