@@ -117,7 +117,7 @@ pub const instruction_set = struct {
         }
 
         //13
-        pub fn jmp(self:*VM) NoError!void {
+        pub fn jump(self:*VM) NoError!void {
             self.ip = self.code.ptr + self.next();
         }
     };

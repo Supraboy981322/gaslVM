@@ -25,6 +25,6 @@ again:
   push 2        ;len (in bytes) of ptr
   free r0       ;frees ptr in r0
 
-jmp :again
+jump :again
 
 jam           ;kills the VM (with err)
