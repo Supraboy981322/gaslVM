@@ -171,6 +171,11 @@ pub const instruction_set = struct {
             const two = vm.getRegBool();
             vm.push(if (one and two) 0 else 1);
         }
+
+        //23
+        pub fn pop(vm:*VM) NoError!void {
+            vm.getRegister().* = vm.pop();
+        }
     };
 
     pub const Enum = struct {
