@@ -12,8 +12,7 @@ pub const instruction_set = struct {
     pub const slice:InstructionSet = blk: {
         var set:[]const *const fn (*VM) anyerror!void = &.{};
         for (@typeInfo(funcs).@"struct".decls) |decl| {
-            const f = @field(funcs, decl.name);
-            set = set ++ .{ f };
+            set = set ++ .{ @field(funcs, decl.name) };
         }
         break :blk set;
     };
