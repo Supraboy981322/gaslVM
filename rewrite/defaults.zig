@@ -176,6 +176,50 @@ pub const instruction_set = struct {
         pub fn pop(vm:*VM) NoError!void {
             vm.getRegister().* = vm.pop();
         }
+
+        //24
+        pub fn syscall(vm:*VM) error{InvalidArgument}!void {
+            const syscall_name:std.posix.system.SYS = @enumFromInt(vm.pop());
+            const arg_count = vm.pop();
+            const ret = switch (arg_count) {
+                0 => std.posix.system.syscall0(syscall_name),
+                1 => std.posix.system.syscall1(syscall_name,
+                    @intCast(vm.getRegister().*),
+                ),
+                2 => std.posix.system.syscall2(syscall_name,
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                ),
+                3 => std.posix.system.syscall3(syscall_name,
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                ),
+                4 => std.posix.system.syscall4(syscall_name,
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                ),
+                5 => std.posix.system.syscall5(syscall_name,
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                ),
+                6 => std.posix.system.syscall6(syscall_name,
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                    @intCast(vm.getRegister().*),
+                ),
+                else => return error.InvalidArgument
+            };
+            vm.push(@intCast(ret));
+        }
     };
 
     pub const Enum = struct {
