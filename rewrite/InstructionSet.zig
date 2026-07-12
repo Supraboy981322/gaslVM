@@ -9,7 +9,7 @@ pub fn Make(comptime functions:anytype) type {
         const Word = VmType.Word;
 
         pub const array = blk: {
-            var set:[]const *const fn (*VmType) anyerror!void = &.{};
+            var set:[]const *const fn (*VmType) callconv(.@"inline") anyerror!void = &.{};
             for (@typeInfo(funcs).@"struct".decls) |decl| {
                 set = set ++ .{ @field(funcs, decl.name) };
             }

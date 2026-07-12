@@ -20,7 +20,7 @@ pub fn Make(comptime InstructionSet:type) type {
         pub const Word = @Int(.unsigned, word_size);
         pub const instructions = struct {
             pub const Set = InstructionSet;
-            pub const InstructionFn = *const fn (*VM) anyerror!void;
+            pub const InstructionFn = *const fn (*VM) callconv(.@"inline") anyerror!void;
             pub const InstructionArray = [InstructionSet.array.len]InstructionFn;
             pub const array = InstructionSet.array;
             pub const Enum = InstructionSet.Enum;
@@ -108,7 +108,7 @@ pub fn Make(comptime InstructionSet:type) type {
             self.ip = self.code.ptr;
             self.stack_top = self.stack.ptr;
             while (true) switch (self.next()) {
-                inline 0...instructions.array.len-1 => |i| try instructions.array[i](self),
+                inline 0...instructions.array.len-1 => |i| try (comptime instructions.array[i])(self),
                 else => return error.InstructionOutOfBounds,
             };
         }

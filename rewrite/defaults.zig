@@ -16,22 +16,22 @@ const NoError = error{};
 pub const instruction_funcs = struct {
 
     //0
-    pub fn move(vm:*VmType) NoError!void {
+    pub inline fn move(vm:*VmType) NoError!void {
         vm.getRegister().* = vm.pop();
     }
 
     //1
-    pub fn add(vm:*VmType) NoError!void {
+    pub inline fn add(vm:*VmType) NoError!void {
         vm.getRegister().* +%= vm.getRegister().*;
     }
 
     //2
-    pub fn sub(vm:*VmType) NoError!void {
+    pub inline fn sub(vm:*VmType) NoError!void {
         vm.getRegister().* -%= vm.getRegister().*;
     }
 
     //3
-    pub fn div(vm:*VmType) error{DivideByZero}!void {
+    pub inline fn div(vm:*VmType) error{DivideByZero}!void {
         const left = vm.getRegister();
         const right = vm.getRegister();
         if (left.* == 0 or right.* == 0) return error.DivideByZero;
@@ -39,29 +39,29 @@ pub const instruction_funcs = struct {
     }
 
     //4
-    pub fn mult(vm:*VmType) NoError!void {
+    pub inline fn mult(vm:*VmType) NoError!void {
         vm.getRegister().* *%= vm.getRegister().*;
     }
 
     //5
-    pub fn push(vm:*VmType) NoError!void {
+    pub inline fn push(vm:*VmType) NoError!void {
         vm.push(vm.next());
     }
 
     //6
-    pub fn print(vm:*VmType) NoError!void {
+    pub inline fn print(vm:*VmType) NoError!void {
         const ptr:[*]u8 = @ptrFromInt(vm.getRegister().*);
         const len:Word = vm.getRegister().*;
         std.debug.print("{s}", .{ptr[0..len]});
     }
 
     //7
-    pub fn jam(_:*VmType) error{Jammed}!void {
+    pub inline fn jam(_:*VmType) error{Jammed}!void {
         return error.Jammed;
     }
 
     //8
-    pub fn alloc(vm:*VmType) error{OutOfMemory}!void {
+    pub inline fn alloc(vm:*VmType) error{OutOfMemory}!void {
         const len = vm.pop();
         // TODO: probably a better way to do this
         const ptr:[*]u8 = (try vm.alloc.alloc(u8, len)).ptr;
@@ -69,7 +69,7 @@ pub const instruction_funcs = struct {
     }
 
     //9
-    pub fn free(vm:*VmType) NoError!void {
+    pub inline fn free(vm:*VmType) NoError!void {
         const ptr = vm.getRegister().*;
         const len = vm.pop();
         const s:[*]u8 = @ptrFromInt(ptr);
@@ -78,7 +78,7 @@ pub const instruction_funcs = struct {
 
     //10
     // TODO: there is 100% a MUCH faster way to do this
-    pub fn store(vm:*VmType) NoError!void {
+    pub inline fn store(vm:*VmType) NoError!void {
         var width = vm.pop();
         var ptr:[*]u8 = @ptrFromInt(vm.getRegister().*);
         var v = vm.pop();
@@ -93,7 +93,7 @@ pub const instruction_funcs = struct {
 
     //11
     // TODO: there is 100% a MUCH faster way to do this
-    pub fn load(vm:*VmType) NoError!void {
+    pub inline fn load(vm:*VmType) NoError!void {
         var width = vm.pop();
         var ptr:[*]u8 = @ptrFromInt(vm.getRegister().*);
         var v = vm.pop();
@@ -106,22 +106,22 @@ pub const instruction_funcs = struct {
     }
 
     //12
-    pub fn pushR(vm:*VmType) NoError!void {
+    pub inline fn pushR(vm:*VmType) NoError!void {
         vm.push(vm.getRegister().*);
     }
 
     //13
-    pub fn jump(vm:*VmType) NoError!void {
+    pub inline fn jump(vm:*VmType) NoError!void {
         vm.ip = vm.code.ptr + vm.next();
     }
 
     //14
-    pub fn equals(vm:*VmType) NoError!void {
+    pub inline fn equals(vm:*VmType) NoError!void {
         vm.push(@intFromBool(vm.getRegister().* == vm.getRegister().*));
     }
 
     //15
-    pub fn jump_if(vm:*VmType) NoError!void {
+    pub inline fn jump_if(vm:*VmType) NoError!void {
         if (vm.getRegBool())
             try jump(vm)
         else
@@ -129,51 +129,51 @@ pub const instruction_funcs = struct {
     }
 
     //16
-    pub fn greater(vm:*VmType) NoError!void {
+    pub inline fn greater(vm:*VmType) NoError!void {
         const cond = vm.getRegister().* > vm.getRegister().*;
         vm.push(if (cond) 1 else 0);
     }
     //17
-    pub fn less(vm:*VmType) NoError!void {
+    pub inline fn less(vm:*VmType) NoError!void {
         const cond = vm.getRegister().* < vm.getRegister().*;
         vm.push(if (cond) 1 else 0);
     }
     //18
-    pub fn not(vm:*VmType) NoError!void {
+    pub inline fn not(vm:*VmType) NoError!void {
         vm.push(if (vm.getRegBool()) 0 else 1);
     }
     //19
-    pub fn @"or"(vm:*VmType) NoError!void {
+    pub inline fn @"or"(vm:*VmType) NoError!void {
         const one = vm.getRegBool();
         const two = vm.getRegBool();
         vm.push(if (one or two) 1 else 0);
     }
     //20
-    pub fn @"and"(vm:*VmType) NoError!void {
+    pub inline fn @"and"(vm:*VmType) NoError!void {
         const one = vm.getRegBool();
         const two = vm.getRegBool();
         vm.push(if (one and two) 1 else 0);
     }
     //21
-    pub fn xor(vm:*VmType) NoError!void {
+    pub inline fn xor(vm:*VmType) NoError!void {
         const one = vm.getRegBool();
         const two = vm.getRegBool();
         vm.push(if ((one and !two) or (!one and two)) 1 else 0);
     }
     //22
-    pub fn nor(vm:*VmType) NoError!void {
+    pub inline fn nor(vm:*VmType) NoError!void {
         const one = vm.getRegBool();
         const two = vm.getRegBool();
         vm.push(if (one and two) 0 else 1);
     }
 
     //23
-    pub fn pop(vm:*VmType) NoError!void {
+    pub inline fn pop(vm:*VmType) NoError!void {
         vm.getRegister().* = vm.pop();
     }
 
     //24
-    pub fn syscall(vm:*VmType) error{InvalidArgument}!void {
+    pub inline fn syscall(vm:*VmType) error{InvalidArgument}!void {
         const syscall_name:std.posix.system.SYS = @enumFromInt(vm.pop());
         const arg_count = vm.pop();
         const ret = switch (arg_count) {
