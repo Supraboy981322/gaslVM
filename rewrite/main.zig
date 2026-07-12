@@ -1,6 +1,7 @@
 const std = @import("std");
-const parser = @import("parser.zig");
-const VM = @import("vm.zig");
+//const VM = @import("vm.zig");
+const VM = @import("defaults.zig").VmType;
+const parser = @import("parser.zig").Make(VM);
 
 pub fn main(init:std.process.Init) !u8 {
     var vm:VM = try .init(init.gpa, .{});
