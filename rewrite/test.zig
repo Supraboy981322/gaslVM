@@ -84,10 +84,6 @@ test "default instruction set" {
 
         \\  sub r0 r1     ;sub 1 from string ptr to revert back to start of string
 
-        \\  push 2        ;len of string
-        \\  move r1       ;move len of string to r1
-        \\  print r0 r1   ;print ptr in r0 with len in r1
-
         \\  push 2        ;len (in bytes) of ptr
         \\  free r0       ;frees ptr in r0
 
@@ -104,4 +100,67 @@ test "default instruction set" {
 
     const result = try vm.do(binary);
     try std.testing.expect(result == 10);
+}
+
+test "allocations" {
+    const alloc = std.testing.allocator;
+
+    const VmType = @import("defaults.zig").VmType;
+    var vm:VmType = try .init(alloc, .{});
+    defer vm.deinit();
+
+    const str:[*]u8 = @constCast("foo").ptr;
+
+    var buf:[2048]u8 = undefined;
+    const code_str = try std.fmt.bufPrint(&buf,
+        \\push 0
+        \\move rf
+
+        \\push 3
+        \\alloc
+        \\move re
+
+        \\again:
+
+        \\  push 3
+        \\  move r0
+        \\  equals r0 rf
+        \\  move r0
+        \\  jump_if r0 :end
+
+        \\  push 1
+        \\  move r0
+        \\  add re r0
+
+        \\  push {d}
+        \\  move r0
+        \\  add r0 rf
+        \\  push 1
+        \\  load r0
+        \\  push 1        ;width of num in bytes
+        \\  store re      ;puts value ('a') into ptr in r0
+
+        \\  push 1
+        \\  move r0
+        \\  add rf r0
+
+        \\jump :again     ;continue loop
+
+        \\end:
+        \\done re         ;kills the VM (with err)
+        \\
+    , .{ @intFromPtr(str) });
+
+    var reader:std.Io.Reader = .fixed(code_str);
+    const parser = Parser(VmType);
+    const code = try parser.do(alloc, &reader);
+    const binary = try VmType.codeFromEnumSlice(alloc, try code.unwrap());
+    code.deinit(alloc);
+    defer alloc.free(binary);
+
+    const result = try vm.do(binary);
+    const ptr:[*]u8 = @ptrFromInt(result-2);
+    const got:[]const u8 = ptr[0..3];
+    defer alloc.free(got);
+    try std.testing.expectEqualStrings("foo", got);
 }
