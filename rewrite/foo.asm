@@ -40,4 +40,4 @@ again:
 jump :again     ;continue loop
 
 end:
-jam             ;kills the VM (with err)
+done rf         ;kills the VM (with err)
