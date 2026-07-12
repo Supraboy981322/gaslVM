@@ -96,7 +96,7 @@ pub const instruction_funcs = struct {
     pub inline fn load(vm:*VmType) NoError!void {
         var width = vm.pop();
         var ptr:[*]u8 = @ptrFromInt(vm.getRegister().*);
-        var v = vm.pop();
+        var v:Word = 0;
         while (width > 0) : ({
             width -= 1;
             ptr += 1;
