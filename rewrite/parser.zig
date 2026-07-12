@@ -81,6 +81,7 @@ pub fn Make(comptime VmType:type) type {
             defer data.deinit();
 
             var state:State = .init(alloc);
+            errdefer state.deinit();
 
             while (state.next(reader)) |b| {
                 if (std.ascii.isWhitespace(b)) switch (try state.whitespace()) {
