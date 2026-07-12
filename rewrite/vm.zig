@@ -1,5 +1,8 @@
 const std = @import("std");
 
+pub const Interupt = enum {
+    finished,
+};
 
 pub fn Make(comptime InstructionSet:type) type {
     return struct {
@@ -13,6 +16,8 @@ pub fn Make(comptime InstructionSet:type) type {
 
         alloc:std.mem.Allocator,
 
+        interupt_msg:?Interupt = null,
+
         const VM = @This();
 
         pub const Registers = MkRegisters(16, Word);
@@ -25,6 +30,7 @@ pub fn Make(comptime InstructionSet:type) type {
             pub const array = InstructionSet.array;
             pub const Enum = InstructionSet.Enum;
             pub const Instruction = InstructionSet.Instruction;
+            pub const jam = InstructionSet.jam;
         };
 
         pub const defaults = @import("defaults.zig");
@@ -70,7 +76,7 @@ pub fn Make(comptime InstructionSet:type) type {
                         try alloc.alloc(usize, defaults.stack_size),
                 .alloc = alloc,
                 .registers = .{},
-                .code = try codeFromEnumSlice(alloc, &.{.op(.jam)}),
+                .code = try codeFromEnumSlice(alloc, &.{.op(instructions.jam)}),
             };
         }
         pub fn deinit(self:*VM) void {
@@ -102,13 +108,30 @@ pub fn Make(comptime InstructionSet:type) type {
             return self.getRegister().* != 0;
         }
 
-        pub fn do(self:*VM, code:[]Word) !void {
+        pub fn interupt(self:*VM, msg:Interupt) error{Interupt}!void {
+            self.interupt_msg = msg;
+            return error.Interupt;
+        }
+
+        fn handleInterupt(self:*VM) Word {
+            switch (self.interupt_msg.?) {
+                .finished => return self.pop(),
+            }
+        }
+
+        pub fn do(self:*VM, code:[]Word) !Word {
             self.alloc.free(self.code);
             self.code = code;
             self.ip = self.code.ptr;
             self.stack_top = self.stack.ptr;
             while (true) switch (self.next()) {
-                inline 0...instructions.array.len-1 => |i| try (comptime instructions.array[i])(self),
+                inline 0...instructions.array.len-1 => |f|
+                    (comptime instructions.array[f])(self) catch |e| {
+                        return switch (e) {
+                            error.Interupt => self.handleInterupt(),
+                            else => e,
+                        };
+                    },
                 else => return error.InstructionOutOfBounds,
             };
         }

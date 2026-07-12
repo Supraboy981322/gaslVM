@@ -8,7 +8,7 @@ const isDigit = std.ascii.isDigit;
 pub const stack_size:usize = 16;
 
 pub const instruction_set = InstructionSet(instruction_funcs);
-pub const VmType = VM.Make(instruction_set);
+pub const VmType = VM.Make(instruction_set, .jam);
 pub const Word = VmType.Word;
 
 const NoError = error{};

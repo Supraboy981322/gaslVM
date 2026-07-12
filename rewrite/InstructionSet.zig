@@ -3,9 +3,9 @@ const VM = @import("vm.zig").Make;
 
 const isDigit = std.ascii.isDigit;
 
-pub fn Make(comptime functions:anytype) type {
+pub fn Make(comptime functions:anytype, comptime jam_instruction:anytype) type {
     return struct {
-        const VmType = VM(@This());
+        pub const VmType = VM(@This());
         const Word = VmType.Word;
 
         pub const array = blk: {
@@ -15,6 +15,7 @@ pub fn Make(comptime functions:anytype) type {
             }
             break :blk set[0..set.len];
         };
+        pub const jam:Enum = jam_instruction;
 
         const NoError = error{};
 
