@@ -5,7 +5,7 @@ const VM = @This();
 registers:Registers,
 code:[]Word,
 ip:[*]Word = undefined,
-instructions:InstructionSet,
+instructions:InstructionSlice,
 
 stack:[]Word,
 stack_top:[*]Word = undefined,
@@ -17,7 +17,7 @@ pub const Registers = MkRegisters(16, Word);
 pub const word_size:u16 = 64;
 pub const Word = @Int(.unsigned, word_size);
 pub const Instruction = *const fn (vm:*VM) anyerror!void;
-pub const InstructionSet = []const Instruction;
+pub const InstructionSlice = []const Instruction;
 
 pub const defaults = @import("defaults.zig");
 
@@ -50,7 +50,7 @@ pub fn MkRegisters(comptime count:usize, comptime T:type) type {
 }
 
 pub const InitOpts = struct {
-    instructions:?InstructionSet = null,
+    instructions:?InstructionSlice = null,
     stack_size:?usize = null,
 };
 pub fn init(alloc:std.mem.Allocator, opts:InitOpts) !VM {
