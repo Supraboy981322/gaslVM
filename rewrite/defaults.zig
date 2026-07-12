@@ -7,8 +7,8 @@ const isDigit = std.ascii.isDigit;
 
 pub const stack_size:usize = 16;
 
-pub const instruction_set = InstructionSet(instruction_funcs);
-pub const VmType = VM.Make(instruction_set, .jam);
+pub const instruction_set = InstructionSet(instruction_funcs, .jam);
+pub const VmType = VM.Make(instruction_set);
 pub const Word = VmType.Word;
 
 const NoError = error{};
@@ -214,5 +214,10 @@ pub const instruction_funcs = struct {
             else => return error.InvalidArgument
         };
         vm.push(@intCast(ret));
+    }
+
+    pub inline fn done(vm:*VmType) error{Interupt}!void {
+        vm.push(vm.getRegister().*);
+        return vm.interupt(.finished);
     }
 };
